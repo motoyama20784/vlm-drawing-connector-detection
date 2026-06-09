@@ -1,0 +1,17 @@
+model: gemma4:26b
+
+prompt:
+  type: zero_shot
+  file: prompts/zero_shot/v1.txt
+
+params:
+  temperature: 0.0
+  top_p: 0.9
+  top_k: 40
+
+evaluation:
+  iou_threshold: 0.5
+
+data:
+  samples_dir: data/samples
+  ground_truth_dir: data/ground_truth
