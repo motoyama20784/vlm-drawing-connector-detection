@@ -7,9 +7,10 @@ from pathlib import Path
 import mlflow
 import yaml
 
-from src.detection.detector import detect
+from src.detection.detector import detect, print_model_info, print_gpu_usage
 from src.detection.evaluator import evaluate
 from src.detection.parser import parse_connectors
+from src.visualization.draw_bboxes import draw_bboxes
 
 MLFLOW_TRACKING_URI = os.getenv("MLFLOW_TRACKING_URI", "http://localhost:5000")
 
@@ -30,8 +31,14 @@ def run_experiment(config_path: str) -> None:
     with open(config["prompt"]["file"]) as f:
         prompt_text = f.read()
 
+    outputs_dir = Path(config["data"].get("outputs_dir", "data/outputs"))
+    outputs_dir.mkdir(parents=True, exist_ok=True)
+
     mlflow.set_tracking_uri(MLFLOW_TRACKING_URI)
     mlflow.set_experiment("connector-detection")
+
+    print_model_info(config["model"])
+    print_gpu_usage()
 
     with mlflow.start_run():
         mlflow.log_param("model", config["model"])
@@ -65,17 +72,33 @@ def run_experiment(config_path: str) -> None:
             )
 
             stem = image_path.stem
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+
+            # JSON出力
+            json_path = outputs_dir / f"{timestamp}_{stem}.json"
+            json_path.write_text(
+                json.dumps({"connectors": pred_boxes}, indent=2, ensure_ascii=False),
+                encoding="utf-8",
+            )
+
+            # bbox描画済み画像の出力
+            vis_path = outputs_dir / f"{timestamp}_{stem}_vis.jpg"
+            draw_bboxes(str(image_path), pred_boxes, str(vis_path))
+
             mlflow.log_metric(f"precision_{stem}", metrics["precision"])
             mlflow.log_metric(f"recall_{stem}", metrics["recall"])
             mlflow.log_metric(f"f1_{stem}", metrics["f1"])
             mlflow.log_text(raw_response, f"responses/{stem}.txt")
-
-            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-            output_path = Path(config["data"].get("outputs_dir", "data/outputs")) / f"{timestamp}_{stem}.txt"
-            output_path.write_text(raw_response, encoding="utf-8")
+            mlflow.log_artifact(str(json_path), f"detections")
+            mlflow.log_artifact(str(vis_path), f"visualizations")
 
             all_metrics.append(metrics)
-            print(f"{image_path.name}: P={metrics['precision']:.3f} R={metrics['recall']:.3f} F1={metrics['f1']:.3f}")
+            print(
+                f"{image_path.name}: "
+                f"P={metrics['precision']:.3f} R={metrics['recall']:.3f} F1={metrics['f1']:.3f} | "
+                f"検出数={len(pred_boxes)} | "
+                f"JSON={json_path.name} | vis={vis_path.name}"
+            )
 
         if all_metrics:
             avg_p = sum(m["precision"] for m in all_metrics) / len(all_metrics)

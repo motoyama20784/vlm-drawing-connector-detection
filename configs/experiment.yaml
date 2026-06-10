@@ -15,3 +15,4 @@ evaluation:
 data:
   samples_dir: data/samples
   ground_truth_dir: data/ground_truth
+  outputs_dir: data/outputs
