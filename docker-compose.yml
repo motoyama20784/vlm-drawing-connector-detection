@@ -32,6 +32,7 @@ services:
       --port 5000
       --backend-store-uri sqlite:////mlflow/mlflow.db
       --default-artifact-root /mlflow/artifacts
+      --serve-artifacts
 
   python:
     build:
@@ -53,4 +54,5 @@ services:
 
 volumes:
   ollama_data:
-    driver: local
+    external: true
+    name: ollama_ollama_data
