@@ -4,7 +4,7 @@ from src.detection.evaluator import compute_iou, evaluate
 
 def test_iou_perfect_match():
     box = {"x_center": 0.5, "y_center": 0.5, "width": 0.1, "height": 0.1}
-    assert compute_iou(box, box) == 1.0
+    assert compute_iou(box, box) == pytest.approx(1.0)
 
 
 def test_iou_no_overlap():

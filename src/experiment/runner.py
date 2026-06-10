@@ -1,6 +1,7 @@
 import argparse
 import json
 import os
+from datetime import datetime
 from pathlib import Path
 
 import mlflow
@@ -68,6 +69,11 @@ def run_experiment(config_path: str) -> None:
             mlflow.log_metric(f"recall_{stem}", metrics["recall"])
             mlflow.log_metric(f"f1_{stem}", metrics["f1"])
             mlflow.log_text(raw_response, f"responses/{stem}.txt")
+
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            output_path = Path(config["data"].get("outputs_dir", "data/outputs")) / f"{timestamp}_{stem}.txt"
+            output_path.write_text(raw_response, encoding="utf-8")
+
             all_metrics.append(metrics)
             print(f"{image_path.name}: P={metrics['precision']:.3f} R={metrics['recall']:.3f} F1={metrics['f1']:.3f}")
 
