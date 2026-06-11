@@ -8,6 +8,7 @@ params:
   temperature: 0.0
   top_p: 0.9
   top_k: 40
+  seed: 42
 
 evaluation:
   iou_threshold: 0.5

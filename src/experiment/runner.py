@@ -7,7 +7,7 @@ from pathlib import Path
 import mlflow
 import yaml
 
-from src.detection.detector import detect, print_model_info, print_gpu_usage
+from src.detection.detector import detect, get_model_info, get_gpu_usage, print_model_info, print_gpu_usage
 from src.detection.evaluator import evaluate
 from src.detection.parser import parse_connectors
 from src.visualization.draw_bboxes import draw_bboxes
@@ -47,7 +47,21 @@ def run_experiment(config_path: str) -> None:
         mlflow.log_param("temperature", config["params"]["temperature"])
         mlflow.log_param("top_p", config["params"]["top_p"])
         mlflow.log_param("top_k", config["params"]["top_k"])
+        mlflow.log_param("seed", config["params"].get("seed", 42))   
         mlflow.log_param("iou_threshold", config["evaluation"]["iou_threshold"])
+
+        model_info = get_model_info(config["model"])
+        if "error" not in model_info:
+            mlflow.log_param("model_family", model_info.get("family", "unknown"))
+            mlflow.log_param("model_parameter_size", model_info.get("parameter_size", "unknown"))
+            mlflow.log_param("model_quantization", model_info.get("quantization_level", "unknown"))
+
+        gpu_usage = get_gpu_usage()
+        if "error" not in gpu_usage and gpu_usage.get("loaded_models"):
+            first = gpu_usage["loaded_models"][0]
+            mlflow.log_param("gpu_vram_gb", first.get("vram_gb", "unknown"))
+            mlflow.log_param("gpu_processor", first.get("processor", "unknown"))
+
         mlflow.log_text(prompt_text, "prompt.txt")
 
         samples_dir = config["data"]["samples_dir"]
@@ -73,6 +87,10 @@ def run_experiment(config_path: str) -> None:
 
             stem = image_path.stem
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+
+            # 生レスポンス保存（パース失敗調査用）
+            raw_path = outputs_dir / f"{timestamp}_{stem}_raw.txt"
+            raw_path.write_text(raw_response, encoding="utf-8")
 
             # JSON出力
             json_path = outputs_dir / f"{timestamp}_{stem}.json"

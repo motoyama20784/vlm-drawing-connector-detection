@@ -92,13 +92,14 @@ def detect(image_path: str, prompt: str, model: str, params: dict) -> str:
             "temperature": params.get("temperature", 0.0),
             "top_p": params.get("top_p", 0.9),
             "top_k": params.get("top_k", 40),
+            "seed": params.get("seed", 42),
         },
     }
 
     resp = requests.post(
         f"{OLLAMA_BASE_URL}/api/generate",
         json=payload,
-        timeout=120,
+        timeout=1200,
     )
     resp.raise_for_status()
 

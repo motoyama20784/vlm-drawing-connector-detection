@@ -16,7 +16,7 @@ services:
               capabilities: [gpu]
     environment:
       - OLLAMA_HOST=0.0.0.0
-      - OLLAMA_KEEP_ALIVE=${OLLAMA_KEEP_ALIVE:-5m}
+      - OLLAMA_KEEP_ALIVE=${OLLAMA_KEEP_ALIVE:--1}
 
   mlflow:
     image: ghcr.io/mlflow/mlflow:v2.14.0
@@ -49,6 +49,7 @@ services:
       - MLFLOW_TRACKING_URI=http://mlflow:5000
       - MODEL=${MODEL:-gemma4:26b}
       - PYTHONPATH=/app
+      - GIT_PYTHON_REFRESH=quiet
     stdin_open: true
     tty: true
 
