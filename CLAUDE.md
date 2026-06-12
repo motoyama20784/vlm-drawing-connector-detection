@@ -13,8 +13,7 @@ The codebase has not been initialized yet. Update this file once the project str
 
 `annotator/` ディレクトリに FastAPI + React 製のアノテーション Web アプリがある。
 
-- 起動: `docker compose up annotator`
+- ビルド＆起動: `docker compose build annotator && docker compose up annotator`
 - アクセス: `http://localhost:8000`
 - バックエンドテスト: `docker compose exec python pytest tests/annotator/ -v`
-- フロントエンドビルド: `cd annotator/frontend && npm install && npm run build`
-- フロントエンドを変更したら `docker compose build annotator` が必要
+- フロントエンド（React）のビルドは `docker compose build annotator` が自動で行う（手動不要）
