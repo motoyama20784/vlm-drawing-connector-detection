@@ -44,6 +44,11 @@ export default function App() {
     setSelectedId(prev => prev === id ? null : prev)
   }, [])
 
+  const handleClearAll = useCallback(() => {
+    setBboxes([])
+    setSelectedId(null)
+  }, [])
+
   const handleInfer = useCallback(async (bbox) => {
     setInferring(bbox.id)
     try {
@@ -83,7 +88,20 @@ export default function App() {
     <div style={{ height: '100vh', display: 'flex', flexDirection: 'column' }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 8px', borderBottom: '1px solid #333' }}>
         <ImageSelector images={images} selected={selected} onChange={handleImageChange} />
-        <div style={{ padding: '6px 0' }}>
+        <div style={{ display: 'flex', gap: '8px', padding: '6px 0' }}>
+          <button
+            onClick={handleClearAll}
+            disabled={bboxes.length === 0}
+            style={{
+              padding: '6px 14px',
+              background: bboxes.length === 0 ? '#555' : '#7f0000',
+              color: '#fff', border: 'none', borderRadius: '4px',
+              cursor: bboxes.length === 0 ? 'not-allowed' : 'pointer',
+              fontSize: '14px',
+            }}
+          >
+            全消去
+          </button>
           <button
             onClick={handleSave}
             disabled={!selected || saving}
