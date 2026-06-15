@@ -11,7 +11,9 @@ export default function App() {
   const [images, setImages] = useState([])
   const [selected, setSelected] = useState('')
   const [bboxes, setBboxes] = useState([])
+  const [selectedId, setSelectedId] = useState(null)
   const [inferring, setInferring] = useState(null)
+  const [saving, setSaving] = useState(false)
   const [saveStatus, setSaveStatus] = useState('')
 
   useEffect(() => {
@@ -21,13 +23,16 @@ export default function App() {
   const handleImageChange = useCallback(async (filename) => {
     setSelected(filename)
     setBboxes([])
+    setSelectedId(null)
     if (!filename) return
     const data = await fetchAnnotation(filename)
     setBboxes(data.connectors.map(c => ({ ...c, id: c.id || newId() })))
   }, [])
 
   const handleBboxAdd = useCallback((coords) => {
-    setBboxes(prev => [...prev, { id: newId(), ...coords, category: '', vlm_text: null, vlm_shape: null }])
+    const id = newId()
+    setBboxes(prev => [...prev, { id, ...coords, category: '', vlm_text: null, vlm_shape: null }])
+    setSelectedId(id)
   }, [])
 
   const handleCategoryChange = useCallback((id, value) => {
@@ -36,6 +41,7 @@ export default function App() {
 
   const handleDelete = useCallback((id) => {
     setBboxes(prev => prev.filter(b => b.id !== id))
+    setSelectedId(prev => prev === id ? null : prev)
   }, [])
 
   const handleInfer = useCallback(async (bbox) => {
@@ -59,31 +65,42 @@ export default function App() {
 
   const handleSave = useCallback(async () => {
     if (!selected) return
-    setSaveStatus('保存中...')
+    setSaving(true)
+    setSaveStatus('')
     try {
       await saveAnnotation(selected, { image: selected, connectors: bboxes })
       setSaveStatus('保存完了')
     } catch (e) {
       setSaveStatus('保存失敗')
       console.error(e)
+    } finally {
+      setSaving(false)
+      setTimeout(() => setSaveStatus(''), 2000)
     }
-    setTimeout(() => setSaveStatus(''), 2000)
   }, [selected, bboxes])
 
   return (
     <div style={{ height: '100vh', display: 'flex', flexDirection: 'column' }}>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 8px' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 8px', borderBottom: '1px solid #333' }}>
         <ImageSelector images={images} selected={selected} onChange={handleImageChange} />
-        <button
-          onClick={handleSave}
-          disabled={!selected}
-          style={{
-            padding: '6px 16px', background: selected ? '#2e7d32' : '#555',
-            color: '#fff', border: 'none', borderRadius: '4px', cursor: selected ? 'pointer' : 'not-allowed',
-          }}
-        >
-          {saveStatus || '保存'}
-        </button>
+        <div style={{ padding: '6px 0' }}>
+          <button
+            onClick={handleSave}
+            disabled={!selected || saving}
+            style={{
+              padding: '6px 16px',
+              background: saveStatus === '保存完了' ? '#1b5e20' : saveStatus === '保存失敗' ? '#b71c1c' : !selected || saving ? '#555' : '#2e7d32',
+              color: '#fff', border: 'none', borderRadius: '4px',
+              cursor: !selected || saving ? 'not-allowed' : 'pointer',
+              display: 'flex', alignItems: 'center', gap: '6px',
+              fontSize: '14px', minWidth: '90px', justifyContent: 'center',
+              transition: 'background 0.2s',
+            }}
+          >
+            {saving && <span className="spinner" />}
+            {saving ? '保存中...' : saveStatus || '保存'}
+          </button>
+        </div>
       </div>
 
       <div style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
@@ -91,7 +108,9 @@ export default function App() {
           <AnnotationCanvas
             imageSrc={selected ? fetchImageUrl(selected) : ''}
             bboxes={bboxes}
+            selectedId={selectedId}
             onBboxAdd={handleBboxAdd}
+            onSelect={setSelectedId}
           />
         </div>
         <div style={{ width: '260px', borderLeft: '1px solid #333', display: 'flex', flexDirection: 'column' }}>
@@ -100,6 +119,8 @@ export default function App() {
           </div>
           <BboxList
             bboxes={bboxes}
+            selectedId={selectedId}
+            onSelect={setSelectedId}
             onCategoryChange={handleCategoryChange}
             onInfer={handleInfer}
             onDelete={handleDelete}

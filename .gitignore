@@ -13,3 +13,6 @@ __pycache__/
 # データ（大容量ファイルはGit管理外）
 data
 
+# Node.js
+node_modules/
+

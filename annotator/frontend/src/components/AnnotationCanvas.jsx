@@ -1,6 +1,9 @@
 import { useRef, useEffect, useState, useCallback } from 'react'
 
-export default function AnnotationCanvas({ imageSrc, bboxes, onBboxAdd }) {
+const COLOR_DEFAULT = '#00e676'
+const COLOR_SELECTED = '#ff9800'
+
+export default function AnnotationCanvas({ imageSrc, bboxes, selectedId, onBboxAdd, onSelect }) {
   const canvasRef = useRef(null)
   const imageRef = useRef(null)
   const [drawing, setDrawing] = useState(false)
@@ -15,15 +18,24 @@ export default function AnnotationCanvas({ imageSrc, bboxes, onBboxAdd }) {
     ctx.drawImage(imageRef.current, 0, 0, canvas.width, canvas.height)
 
     bboxes.forEach((bbox, i) => {
+      const isSelected = bbox.id === selectedId
       const x = (bbox.x_center - bbox.width / 2) * canvas.width
       const y = (bbox.y_center - bbox.height / 2) * canvas.height
       const w = bbox.width * canvas.width
       const h = bbox.height * canvas.height
-      ctx.strokeStyle = '#00e676'
-      ctx.lineWidth = 2
+      const color = isSelected ? COLOR_SELECTED : COLOR_DEFAULT
+
+      if (isSelected) {
+        ctx.fillStyle = 'rgba(255, 152, 0, 0.15)'
+        ctx.fillRect(x, y, w, h)
+      }
+
+      ctx.strokeStyle = color
+      ctx.lineWidth = isSelected ? 3 : 2
       ctx.strokeRect(x, y, w, h)
-      ctx.fillStyle = '#00e676'
-      ctx.font = 'bold 13px sans-serif'
+
+      ctx.fillStyle = color
+      ctx.font = `bold ${isSelected ? 14 : 13}px sans-serif`
       ctx.fillText(String(i + 1), x + 3, y + 15)
     })
 
@@ -38,7 +50,7 @@ export default function AnnotationCanvas({ imageSrc, bboxes, onBboxAdd }) {
       ctx.strokeRect(rx, ry, rw, rh)
       ctx.setLineDash([])
     }
-  }, [bboxes, drawing, startPos, currentPos])
+  }, [bboxes, selectedId, drawing, startPos, currentPos])
 
   useEffect(() => {
     if (!imageSrc) return
@@ -65,9 +77,30 @@ export default function AnnotationCanvas({ imageSrc, bboxes, onBboxAdd }) {
     }
   }
 
+  const hitTest = useCallback((pos) => {
+    const canvas = canvasRef.current
+    for (let i = bboxes.length - 1; i >= 0; i--) {
+      const b = bboxes[i]
+      const x1 = (b.x_center - b.width / 2) * canvas.width
+      const y1 = (b.y_center - b.height / 2) * canvas.height
+      const x2 = (b.x_center + b.width / 2) * canvas.width
+      const y2 = (b.y_center + b.height / 2) * canvas.height
+      if (pos.x >= x1 && pos.x <= x2 && pos.y >= y1 && pos.y <= y2) {
+        return b.id
+      }
+    }
+    return null
+  }, [bboxes])
+
   const handleMouseDown = (e) => {
-    setDrawing(true)
     const pos = getPos(e)
+    const hit = hitTest(pos)
+    if (hit) {
+      onSelect(hit)
+      return
+    }
+    onSelect(null)
+    setDrawing(true)
     setStartPos(pos)
     setCurrentPos(pos)
   }

@@ -7,6 +7,15 @@
     <style>
       * { box-sizing: border-box; margin: 0; padding: 0; }
       body { font-family: sans-serif; background: #1a1a1a; color: #eee; }
+      @keyframes spin { to { transform: rotate(360deg); } }
+      .spinner {
+        width: 14px; height: 14px;
+        border: 2px solid rgba(255,255,255,0.3);
+        border-top-color: #fff;
+        border-radius: 50%;
+        animation: spin 0.7s linear infinite;
+        display: inline-block;
+      }
     </style>
   </head>
   <body>
