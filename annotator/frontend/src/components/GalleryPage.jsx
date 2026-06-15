@@ -121,7 +121,7 @@ export default function GalleryPage({ onSelectImage }) {
               >
                 <div style={{ width: '100%', height: '120px', overflow: 'hidden', background: '#0a1826' }}>
                   <img
-                    src={fetchImageUrl(img.filename)}
+                    src={fetchImageUrl(img.filename, selectedDir)}
                     alt={img.filename}
                     style={{ width: '100%', height: '100%', objectFit: 'contain' }}
                     loading="lazy"

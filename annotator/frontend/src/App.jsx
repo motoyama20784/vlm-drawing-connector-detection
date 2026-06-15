@@ -12,6 +12,7 @@ export default function App() {
   const [page, setPage] = useState('gallery')
   const [galleryKey, setGalleryKey] = useState(0)
   const [selected, setSelected] = useState('')
+  const [imageDir, setImageDir] = useState('samples')
   const [bboxes, setBboxes] = useState([])
   const [selectedId, setSelectedId] = useState(null)
   const [completed, setCompleted] = useState(false)
@@ -22,8 +23,9 @@ export default function App() {
 
   const isDirty = snapshot(bboxes, completed) !== savedSnapshot.current
 
-  const openEditor = useCallback(async (filename) => {
+  const openEditor = useCallback(async (filename, dir = 'samples') => {
     setSelected(filename)
+    setImageDir(dir)
     setBboxes([])
     setSelectedId(null)
     setCompleted(false)
@@ -59,7 +61,7 @@ export default function App() {
   const handleInfer = useCallback(async (bbox) => {
     setInferring(bbox.id)
     try {
-      const result = await inferBbox(selected, {
+      const result = await inferBbox(selected, imageDir, {
         x_center: bbox.x_center,
         y_center: bbox.y_center,
         width: bbox.width,
@@ -73,7 +75,7 @@ export default function App() {
     } finally {
       setInferring(null)
     }
-  }, [selected])
+  }, [selected, imageDir])
 
   const handleSave = useCallback(async () => {
     if (!selected) return
@@ -174,7 +176,7 @@ export default function App() {
       <div style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
         <div style={{ flex: 1, overflow: 'auto', padding: '8px', display: 'flex', alignItems: 'flex-start', background: '#0d1b2a' }}>
           <AnnotationCanvas
-            imageSrc={selected ? fetchImageUrl(selected) : ''}
+            imageSrc={selected ? fetchImageUrl(selected, imageDir) : ''}
             bboxes={bboxes}
             selectedId={selectedId}
             onBboxAdd={handleBboxAdd}
