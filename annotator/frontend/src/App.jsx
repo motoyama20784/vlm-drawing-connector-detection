@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback } from 'react'
+import { useState, useRef, useCallback, useEffect } from 'react'
 import GalleryPage from './components/GalleryPage.jsx'
 import AnnotationCanvas from './components/AnnotationCanvas.jsx'
 import BboxList from './components/BboxList.jsx'
@@ -20,10 +20,41 @@ export default function App() {
   const [saving, setSaving] = useState(false)
   const [saveStatus, setSaveStatus] = useState('')
   const savedSnapshot = useRef('')
+  const bboxesRef = useRef([])
+  const bboxHistory = useRef([]) // undo stack
+
+  // Keep bboxesRef in sync so handlers can read latest value without deps
+  useEffect(() => { bboxesRef.current = bboxes }, [bboxes])
 
   const isDirty = snapshot(bboxes, completed) !== savedSnapshot.current
 
+  const pushHistory = () => {
+    bboxHistory.current = [...bboxHistory.current.slice(-49), bboxesRef.current]
+  }
+
+  const handleUndo = useCallback(() => {
+    if (bboxHistory.current.length === 0) return
+    const prev = bboxHistory.current[bboxHistory.current.length - 1]
+    bboxHistory.current = bboxHistory.current.slice(0, -1)
+    setBboxes(prev)
+    setSelectedId(null)
+  }, [])
+
+  // Ctrl+Z undo (editor only)
+  useEffect(() => {
+    if (page !== 'editor') return
+    const onKey = (e) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === 'z' && !e.shiftKey) {
+        e.preventDefault()
+        handleUndo()
+      }
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [page, handleUndo])
+
   const openEditor = useCallback(async (filename, dir = 'samples') => {
+    bboxHistory.current = []
     setSelected(filename)
     setImageDir(dir)
     setBboxes([])
@@ -39,6 +70,7 @@ export default function App() {
   }, [])
 
   const handleBboxAdd = useCallback((coords) => {
+    pushHistory()
     const id = newId()
     setBboxes(prev => [...prev, { id, ...coords, category: '', part_number: '', notes: '', vlm_text: null, vlm_shape: null }])
     setSelectedId(id)
@@ -53,11 +85,13 @@ export default function App() {
   }, [])
 
   const handleDelete = useCallback((id) => {
+    pushHistory()
     setBboxes(prev => prev.filter(b => b.id !== id))
     setSelectedId(prev => prev === id ? null : prev)
   }, [])
 
   const handleClearAll = useCallback(() => {
+    pushHistory()
     setBboxes([])
     setSelectedId(null)
   }, [])
@@ -109,6 +143,8 @@ export default function App() {
     return <GalleryPage key={galleryKey} onSelectImage={openEditor} />
   }
 
+  const canUndo = bboxHistory.current.length > 0
+
   return (
     <div style={{ height: '100vh', display: 'flex', flexDirection: 'column' }}>
       <div style={{
@@ -143,6 +179,20 @@ export default function App() {
             }}
           >
             {completed ? '✓ 完了済み' : '○ 未完了'}
+          </button>
+          <button
+            onClick={handleUndo}
+            disabled={!canUndo}
+            title="元に戻す (Ctrl+Z)"
+            style={{
+              padding: '6px 12px', borderRadius: '4px', fontSize: '14px',
+              border: `1px solid ${canUndo ? '#4a6a8a' : '#2a3f55'}`,
+              background: canUndo ? '#1e3448' : '#161e2a',
+              color: canUndo ? '#c0d8f0' : '#3a5070',
+              cursor: canUndo ? 'pointer' : 'not-allowed',
+            }}
+          >
+            ↩ Undo
           </button>
           <button
             onClick={handleClearAll}
