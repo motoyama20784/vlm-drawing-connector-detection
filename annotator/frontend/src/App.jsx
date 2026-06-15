@@ -178,7 +178,7 @@ export default function App() {
       </div>
 
       <div style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
-        <div style={{ flex: 1, overflow: 'auto', padding: '8px', display: 'flex', alignItems: 'flex-start', background: '#0d1b2a' }}>
+        <div style={{ flex: 1, overflow: 'hidden', background: '#0d1b2a' }}>
           <AnnotationCanvas
             imageSrc={selected ? fetchImageUrl(selected, imageDir) : ''}
             bboxes={bboxes}
