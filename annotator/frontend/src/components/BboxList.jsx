@@ -1,4 +1,46 @@
+import { useState } from 'react'
+
 const CATEGORY_OPTIONS = ['Male Connector', 'Female Connector']
+
+function CopyRow({ label, value }) {
+  const [copied, setCopied] = useState(false)
+  const text = value ?? '—'
+  const canCopy = value !== null && value !== undefined
+
+  const handleCopy = (e) => {
+    e.stopPropagation()
+    if (!canCopy) return
+    navigator.clipboard.writeText(value).then(() => {
+      setCopied(true)
+      setTimeout(() => setCopied(false), 1500)
+    })
+  }
+
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '4px', marginBottom: '2px' }}>
+      <span style={{ flexShrink: 0 }}>{label}: <span style={{ color: '#e2eaf5' }}>{text}</span></span>
+      <button
+        onClick={handleCopy}
+        disabled={!canCopy}
+        title={copied ? 'コピー済み' : 'クリップボードにコピー'}
+        style={{
+          flexShrink: 0,
+          background: copied ? '#1b5e20' : 'none',
+          border: `1px solid ${copied ? '#00e676' : '#2a4060'}`,
+          borderRadius: '3px',
+          color: copied ? '#00e676' : '#5a8ab0',
+          cursor: canCopy ? 'pointer' : 'default',
+          fontSize: '10px',
+          padding: '1px 5px',
+          transition: 'all 0.2s',
+          whiteSpace: 'nowrap',
+        }}
+      >
+        {copied ? '✓' : '⎘'}
+      </button>
+    </div>
+  )
+}
 
 const inputStyle = (isSelected) => ({
   width: '100%', marginTop: '2px', padding: '4px 6px',
@@ -100,8 +142,8 @@ export default function BboxList({ bboxes, selectedId, onSelect, onCategoryChang
 
             {(bbox.vlm_text !== null || bbox.vlm_shape !== null) && (
               <div style={{ fontSize: '12px', color: '#7a9cc0', background: '#0a1826', padding: '6px', borderRadius: '4px' }}>
-                <div>Text: <span style={{ color: '#e2eaf5' }}>{bbox.vlm_text ?? '—'}</span></div>
-                <div>Shape: <span style={{ color: '#e2eaf5' }}>{bbox.vlm_shape ?? '—'}</span></div>
+                <CopyRow label="Text" value={bbox.vlm_text} />
+                <CopyRow label="Shape" value={bbox.vlm_shape} />
               </div>
             )}
           </div>
