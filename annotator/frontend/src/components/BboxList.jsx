@@ -1,7 +1,7 @@
 export default function BboxList({ bboxes, selectedId, onSelect, onCategoryChange, onInfer, onDelete, inferring }) {
   if (bboxes.length === 0) {
     return (
-      <div style={{ padding: '16px', color: '#666', fontSize: '13px' }}>
+      <div style={{ padding: '16px', color: '#4a6a8a', fontSize: '13px' }}>
         Canvas 上でドラッグして bbox を描いてください
       </div>
     )
@@ -17,8 +17,8 @@ export default function BboxList({ bboxes, selectedId, onSelect, onCategoryChang
             onClick={() => onSelect(bbox.id)}
             style={{
               padding: '10px',
-              borderBottom: '1px solid #333',
-              background: isSelected ? '#2a3a2a' : '#2a2a2a',
+              borderBottom: '1px solid #1e3a5f',
+              background: isSelected ? '#1a3a5c' : '#0f2035',
               borderLeft: isSelected ? '3px solid #ff9800' : '3px solid transparent',
               cursor: 'pointer',
               transition: 'background 0.15s',
@@ -35,7 +35,7 @@ export default function BboxList({ bboxes, selectedId, onSelect, onCategoryChang
             </div>
 
             <div style={{ marginBottom: '6px' }} onClick={e => e.stopPropagation()}>
-              <label style={{ fontSize: '12px', color: '#aaa' }}>カテゴリ</label>
+              <label style={{ fontSize: '12px', color: '#7a9cc0' }}>カテゴリ</label>
               <input
                 type="text"
                 value={bbox.category}
@@ -43,7 +43,8 @@ export default function BboxList({ bboxes, selectedId, onSelect, onCategoryChang
                 placeholder="例: terminal"
                 style={{
                   width: '100%', marginTop: '2px', padding: '4px 6px',
-                  background: '#333', color: '#eee', border: `1px solid ${isSelected ? '#ff9800' : '#555'}`,
+                  background: '#1b2d3e', color: '#e2eaf5',
+                  border: `1px solid ${isSelected ? '#ff9800' : '#2a4060'}`,
                   borderRadius: '4px', fontSize: '13px',
                 }}
               />
@@ -54,8 +55,8 @@ export default function BboxList({ bboxes, selectedId, onSelect, onCategoryChang
               disabled={inferring === bbox.id}
               style={{
                 width: '100%', padding: '5px',
-                background: inferring === bbox.id ? '#555' : '#1565c0',
-                color: '#fff', border: 'none', borderRadius: '4px',
+                background: inferring === bbox.id ? '#2a3f55' : '#1a5276',
+                color: '#e2eaf5', border: 'none', borderRadius: '4px',
                 cursor: inferring === bbox.id ? 'not-allowed' : 'pointer',
                 fontSize: '13px', marginBottom: '6px',
                 display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px',
@@ -66,9 +67,9 @@ export default function BboxList({ bboxes, selectedId, onSelect, onCategoryChang
             </button>
 
             {(bbox.vlm_text !== null || bbox.vlm_shape !== null) && (
-              <div style={{ fontSize: '12px', color: '#bbb', background: '#1a1a1a', padding: '6px', borderRadius: '4px' }}>
-                <div>テキスト: <span style={{ color: '#fff' }}>{bbox.vlm_text ?? '—'}</span></div>
-                <div>形状: <span style={{ color: '#fff' }}>{bbox.vlm_shape ?? '—'}</span></div>
+              <div style={{ fontSize: '12px', color: '#7a9cc0', background: '#0a1826', padding: '6px', borderRadius: '4px' }}>
+                <div>テキスト: <span style={{ color: '#e2eaf5' }}>{bbox.vlm_text ?? '—'}</span></div>
+                <div>形状: <span style={{ color: '#e2eaf5' }}>{bbox.vlm_shape ?? '—'}</span></div>
               </div>
             )}
           </div>

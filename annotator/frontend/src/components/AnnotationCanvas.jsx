@@ -133,7 +133,7 @@ export default function AnnotationCanvas({ imageSrc, bboxes, selectedId, onBboxA
 
   if (!imageSrc) {
     return (
-      <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#666' }}>
+      <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#4a6a8a' }}>
         画像を選択してください
       </div>
     )

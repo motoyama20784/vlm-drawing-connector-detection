@@ -86,7 +86,7 @@ export default function App() {
 
   return (
     <div style={{ height: '100vh', display: 'flex', flexDirection: 'column' }}>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 8px', borderBottom: '1px solid #333' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 8px', borderBottom: '1px solid #1e3a5f', background: '#112236' }}>
         <ImageSelector images={images} selected={selected} onChange={handleImageChange} />
         <div style={{ display: 'flex', gap: '8px', padding: '6px 0' }}>
           <button
@@ -94,7 +94,7 @@ export default function App() {
             disabled={bboxes.length === 0}
             style={{
               padding: '6px 14px',
-              background: bboxes.length === 0 ? '#555' : '#7f0000',
+              background: bboxes.length === 0 ? '#2a3f55' : '#7f0000',
               color: '#fff', border: 'none', borderRadius: '4px',
               cursor: bboxes.length === 0 ? 'not-allowed' : 'pointer',
               fontSize: '14px',
@@ -107,7 +107,7 @@ export default function App() {
             disabled={!selected || saving}
             style={{
               padding: '6px 16px',
-              background: saveStatus === '保存完了' ? '#1b5e20' : saveStatus === '保存失敗' ? '#b71c1c' : !selected || saving ? '#555' : '#2e7d32',
+              background: saveStatus === '保存完了' ? '#1b5e20' : saveStatus === '保存失敗' ? '#b71c1c' : !selected || saving ? '#2a3f55' : '#1a6b8a',
               color: '#fff', border: 'none', borderRadius: '4px',
               cursor: !selected || saving ? 'not-allowed' : 'pointer',
               display: 'flex', alignItems: 'center', gap: '6px',
@@ -131,8 +131,8 @@ export default function App() {
             onSelect={setSelectedId}
           />
         </div>
-        <div style={{ width: '260px', borderLeft: '1px solid #333', display: 'flex', flexDirection: 'column' }}>
-          <div style={{ padding: '8px', borderBottom: '1px solid #333', fontSize: '13px', color: '#aaa' }}>
+        <div style={{ width: '260px', borderLeft: '1px solid #1e3a5f', display: 'flex', flexDirection: 'column', background: '#0f2035' }}>
+          <div style={{ padding: '8px', borderBottom: '1px solid #1e3a5f', fontSize: '13px', color: '#7a9cc0' }}>
             Bbox 一覧 ({bboxes.length})
           </div>
           <BboxList
