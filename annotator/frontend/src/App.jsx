@@ -30,7 +30,7 @@ export default function App() {
     setSelectedId(null)
     setCompleted(false)
     const data = await fetchAnnotation(filename)
-    const loadedBboxes = data.connectors.map(c => ({ ...c, id: c.id || newId() }))
+    const loadedBboxes = data.connectors.map(c => ({ part_number: '', notes: '', ...c, id: c.id || newId() }))
     const loadedCompleted = data.completed ?? false
     setBboxes(loadedBboxes)
     setCompleted(loadedCompleted)
@@ -40,12 +40,16 @@ export default function App() {
 
   const handleBboxAdd = useCallback((coords) => {
     const id = newId()
-    setBboxes(prev => [...prev, { id, ...coords, category: '', vlm_text: null, vlm_shape: null }])
+    setBboxes(prev => [...prev, { id, ...coords, category: '', part_number: '', notes: '', vlm_text: null, vlm_shape: null }])
     setSelectedId(id)
   }, [])
 
   const handleCategoryChange = useCallback((id, value) => {
     setBboxes(prev => prev.map(b => b.id === id ? { ...b, category: value } : b))
+  }, [])
+
+  const handleFieldChange = useCallback((id, field, value) => {
+    setBboxes(prev => prev.map(b => b.id === id ? { ...b, [field]: value } : b))
   }, [])
 
   const handleDelete = useCallback((id) => {
@@ -192,6 +196,7 @@ export default function App() {
             selectedId={selectedId}
             onSelect={setSelectedId}
             onCategoryChange={handleCategoryChange}
+            onFieldChange={handleFieldChange}
             onInfer={handleInfer}
             onDelete={handleDelete}
             inferring={inferring}

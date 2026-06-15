@@ -20,8 +20,10 @@ def tmp_data(tmp_path):
 @pytest.fixture
 def client(tmp_data):
     def override():
+        data_dir = tmp_data / "data"
         return Config(
-            data_dir=tmp_data / "data",
+            data_dir=data_dir,
+            inputs_dir=data_dir / "inputs",
             ollama_base_url="http://mock-ollama:11434",
             model="test-model",
             prompt_file=str(tmp_data / "prompts" / "annotator" / "v1.txt"),

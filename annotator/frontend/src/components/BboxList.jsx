@@ -1,4 +1,13 @@
-export default function BboxList({ bboxes, selectedId, onSelect, onCategoryChange, onInfer, onDelete, inferring }) {
+const CATEGORY_OPTIONS = ['Male Connector', 'Female Connector']
+
+const inputStyle = (isSelected) => ({
+  width: '100%', marginTop: '2px', padding: '4px 6px',
+  background: '#1b2d3e', color: '#e2eaf5',
+  border: `1px solid ${isSelected ? '#ff9800' : '#2a4060'}`,
+  borderRadius: '4px', fontSize: '13px',
+})
+
+export default function BboxList({ bboxes, selectedId, onSelect, onCategoryChange, onFieldChange, onInfer, onDelete, inferring }) {
   if (bboxes.length === 0) {
     return (
       <div style={{ padding: '16px', color: '#4a6a8a', fontSize: '13px' }}>
@@ -9,6 +18,10 @@ export default function BboxList({ bboxes, selectedId, onSelect, onCategoryChang
 
   return (
     <div style={{ overflowY: 'auto', flex: 1 }}>
+      <datalist id="category-options">
+        {CATEGORY_OPTIONS.map(c => <option key={c} value={c} />)}
+      </datalist>
+
       {bboxes.map((bbox, i) => {
         const isSelected = bbox.id === selectedId
         return (
@@ -34,20 +47,39 @@ export default function BboxList({ bboxes, selectedId, onSelect, onCategoryChang
               >×</button>
             </div>
 
-            <div style={{ marginBottom: '6px' }} onClick={e => e.stopPropagation()}>
-              <label style={{ fontSize: '12px', color: '#7a9cc0' }}>カテゴリ</label>
-              <input
-                type="text"
-                value={bbox.category}
-                onChange={e => onCategoryChange(bbox.id, e.target.value)}
-                placeholder="例: terminal"
-                style={{
-                  width: '100%', marginTop: '2px', padding: '4px 6px',
-                  background: '#1b2d3e', color: '#e2eaf5',
-                  border: `1px solid ${isSelected ? '#ff9800' : '#2a4060'}`,
-                  borderRadius: '4px', fontSize: '13px',
-                }}
-              />
+            <div onClick={e => e.stopPropagation()}>
+              <div style={{ marginBottom: '6px' }}>
+                <label style={{ fontSize: '12px', color: '#7a9cc0' }}>Category</label>
+                <input
+                  list="category-options"
+                  value={bbox.category}
+                  onChange={e => onCategoryChange(bbox.id, e.target.value)}
+                  placeholder="Select or type..."
+                  style={inputStyle(isSelected)}
+                />
+              </div>
+
+              <div style={{ marginBottom: '6px' }}>
+                <label style={{ fontSize: '12px', color: '#7a9cc0' }}>Part Number</label>
+                <input
+                  type="text"
+                  value={bbox.part_number ?? ''}
+                  onChange={e => onFieldChange(bbox.id, 'part_number', e.target.value)}
+                  placeholder="e.g. 12345-678"
+                  style={inputStyle(isSelected)}
+                />
+              </div>
+
+              <div style={{ marginBottom: '6px' }}>
+                <label style={{ fontSize: '12px', color: '#7a9cc0' }}>Notes</label>
+                <input
+                  type="text"
+                  value={bbox.notes ?? ''}
+                  onChange={e => onFieldChange(bbox.id, 'notes', e.target.value)}
+                  placeholder="Optional notes"
+                  style={inputStyle(isSelected)}
+                />
+              </div>
             </div>
 
             <button
@@ -68,8 +100,8 @@ export default function BboxList({ bboxes, selectedId, onSelect, onCategoryChang
 
             {(bbox.vlm_text !== null || bbox.vlm_shape !== null) && (
               <div style={{ fontSize: '12px', color: '#7a9cc0', background: '#0a1826', padding: '6px', borderRadius: '4px' }}>
-                <div>テキスト: <span style={{ color: '#e2eaf5' }}>{bbox.vlm_text ?? '—'}</span></div>
-                <div>形状: <span style={{ color: '#e2eaf5' }}>{bbox.vlm_shape ?? '—'}</span></div>
+                <div>Text: <span style={{ color: '#e2eaf5' }}>{bbox.vlm_text ?? '—'}</span></div>
+                <div>Shape: <span style={{ color: '#e2eaf5' }}>{bbox.vlm_shape ?? '—'}</span></div>
               </div>
             )}
           </div>

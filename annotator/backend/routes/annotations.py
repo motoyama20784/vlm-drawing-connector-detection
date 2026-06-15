@@ -15,6 +15,8 @@ class BboxItem(BaseModel):
     width: float
     height: float
     category: str
+    part_number: Optional[str] = None
+    notes: Optional[str] = None
     vlm_text: Optional[str] = None
     vlm_shape: Optional[str] = None
 
