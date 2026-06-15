@@ -1,32 +1,32 @@
 import { useState, useEffect, useCallback } from 'react'
-import ImageSelector from './components/ImageSelector.jsx'
+import GalleryPage from './components/GalleryPage.jsx'
 import AnnotationCanvas from './components/AnnotationCanvas.jsx'
 import BboxList from './components/BboxList.jsx'
-import { fetchImages, fetchImageUrl, fetchAnnotation, saveAnnotation, inferBbox } from './api.js'
+import { fetchImageUrl, fetchAnnotation, saveAnnotation, inferBbox } from './api.js'
 
 let bboxCounter = 0
 const newId = () => `bbox-${++bboxCounter}`
 
 export default function App() {
-  const [images, setImages] = useState([])
+  const [page, setPage] = useState('gallery')
+  const [galleryKey, setGalleryKey] = useState(0)
   const [selected, setSelected] = useState('')
   const [bboxes, setBboxes] = useState([])
   const [selectedId, setSelectedId] = useState(null)
+  const [completed, setCompleted] = useState(false)
   const [inferring, setInferring] = useState(null)
   const [saving, setSaving] = useState(false)
   const [saveStatus, setSaveStatus] = useState('')
 
-  useEffect(() => {
-    fetchImages().then(setImages).catch(console.error)
-  }, [])
-
-  const handleImageChange = useCallback(async (filename) => {
+  const openEditor = useCallback(async (filename) => {
     setSelected(filename)
     setBboxes([])
     setSelectedId(null)
-    if (!filename) return
+    setCompleted(false)
     const data = await fetchAnnotation(filename)
     setBboxes(data.connectors.map(c => ({ ...c, id: c.id || newId() })))
+    setCompleted(data.completed ?? false)
+    setPage('editor')
   }, [])
 
   const handleBboxAdd = useCallback((coords) => {
@@ -73,7 +73,7 @@ export default function App() {
     setSaving(true)
     setSaveStatus('')
     try {
-      await saveAnnotation(selected, { image: selected, connectors: bboxes })
+      await saveAnnotation(selected, { image: selected, connectors: bboxes, completed })
       setSaveStatus('保存完了')
     } catch (e) {
       setSaveStatus('保存失敗')
@@ -84,11 +84,49 @@ export default function App() {
     }
   }, [selected, bboxes])
 
+  if (page === 'gallery') {
+    return <GalleryPage key={galleryKey} onSelectImage={openEditor} />
+  }
+
   return (
     <div style={{ height: '100vh', display: 'flex', flexDirection: 'column' }}>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 8px', borderBottom: '1px solid #1e3a5f', background: '#112236' }}>
-        <ImageSelector images={images} selected={selected} onChange={handleImageChange} />
-        <div style={{ display: 'flex', gap: '8px', padding: '6px 0' }}>
+      <div style={{
+        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+        padding: '0 8px', borderBottom: '1px solid #1e3a5f', background: '#112236',
+      }}>
+        <span style={{ fontSize: '13px', color: '#e2eaf5', padding: '0 4px' }}>{selected}</span>
+        <div style={{ display: 'flex', gap: '8px', padding: '6px 0', alignItems: 'center' }}>
+          <button
+            onClick={async () => {
+              await saveAnnotation(selected, { image: selected, connectors: bboxes, completed })
+              setPage('gallery')
+              setGalleryKey(k => k + 1)
+            }}
+            style={{
+              padding: '6px 14px', borderRadius: '4px', fontSize: '14px',
+              border: '1px solid #2a4060', background: 'transparent',
+              color: '#7a9cc0', cursor: 'pointer',
+            }}
+          >
+            一覧へ
+          </button>
+          <button
+            onClick={async () => {
+              const next = !completed
+              setCompleted(next)
+              await saveAnnotation(selected, { image: selected, connectors: bboxes, completed: next })
+            }}
+            title={completed ? 'クリックで未完了に戻す' : 'クリックで完了にする'}
+            style={{
+              padding: '6px 14px', borderRadius: '4px', fontSize: '14px',
+              border: `1px solid ${completed ? '#00e676' : '#2a4060'}`,
+              background: completed ? '#0d3320' : 'transparent',
+              color: completed ? '#00e676' : '#7a9cc0',
+              cursor: 'pointer', transition: 'all 0.2s',
+            }}
+          >
+            {completed ? '✓ 完了済み' : '○ 未完了'}
+          </button>
           <button
             onClick={handleClearAll}
             disabled={bboxes.length === 0}
@@ -122,7 +160,7 @@ export default function App() {
       </div>
 
       <div style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
-        <div style={{ flex: 1, overflow: 'auto', padding: '8px', display: 'flex', alignItems: 'flex-start' }}>
+        <div style={{ flex: 1, overflow: 'auto', padding: '8px', display: 'flex', alignItems: 'flex-start', background: '#0d1b2a' }}>
           <AnnotationCanvas
             imageSrc={selected ? fetchImageUrl(selected) : ''}
             bboxes={bboxes}

@@ -20,8 +20,8 @@ def list_images(config: Config = Depends(get_config)):
 
 
 @router.get("/images/{filename}")
-def get_image(filename: str, config: Config = Depends(get_config)):
-    path = config.data_dir / "samples" / filename
+def get_image(filename: str, dir: str = "samples", config: Config = Depends(get_config)):
+    path = config.data_dir / dir / filename
     if not path.exists():
         raise HTTPException(status_code=404, detail="Image not found")
     return FileResponse(str(path))

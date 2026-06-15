@@ -16,3 +16,9 @@ export const saveAnnotation = (filename, data) =>
 
 export const inferBbox = (image, bbox) =>
   api.post('/infer', { image, bbox }).then(r => r.data)
+
+export const fetchDirs = () =>
+  api.get('/dirs').then(r => r.data.dirs)
+
+export const fetchStatus = (dir) =>
+  api.get('/status', { params: { dir } }).then(r => r.data.images)

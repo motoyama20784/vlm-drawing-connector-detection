@@ -22,13 +22,14 @@ class BboxItem(BaseModel):
 class AnnotationData(BaseModel):
     image: str
     connectors: list[BboxItem]
+    completed: bool = False
 
 
 @router.get("/annotations/{filename}")
 def get_annotation(filename: str, config: Config = Depends(get_config)):
     path = config.data_dir / "ground_truth" / f"{Path(filename).stem}.json"
     if not path.exists():
-        return {"image": filename, "connectors": []}
+        return {"image": filename, "connectors": [], "completed": False}
     with open(path, "r", encoding="utf-8") as f:
         return json.load(f)
 
