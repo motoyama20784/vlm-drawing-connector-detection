@@ -98,8 +98,8 @@ export default function GalleryPage({ onSelectImage }) {
         ) : (
           <div style={{
             display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))',
-            gap: '12px',
+            gridTemplateColumns: 'repeat(auto-fill, minmax(270px, 1fr))',
+            gap: '16px',
           }}>
             {images.map(img => (
               <div
@@ -119,7 +119,7 @@ export default function GalleryPage({ onSelectImage }) {
                   e.currentTarget.style.transform = 'translateY(0)'
                 }}
               >
-                <div style={{ width: '100%', height: '120px', overflow: 'hidden', background: '#0a1826' }}>
+                <div style={{ width: '100%', height: '180px', overflow: 'hidden', background: '#0a1826' }}>
                   <img
                     src={fetchImageUrl(img.filename, selectedDir)}
                     alt={img.filename}
