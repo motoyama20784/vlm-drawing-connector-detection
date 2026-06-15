@@ -35,7 +35,7 @@ export default function GalleryPage({ onSelectImage }) {
   useEffect(() => {
     fetchDirs().then(d => {
       setDirs(d)
-      if (d.length > 0) setSelectedDir(d[0])
+      if (d.length > 0) setSelectedDir(d.includes('samples') ? 'samples' : d[0])
     }).catch(console.error)
   }, [])
 

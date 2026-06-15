@@ -1,11 +1,12 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useRef, useCallback } from 'react'
 import GalleryPage from './components/GalleryPage.jsx'
 import AnnotationCanvas from './components/AnnotationCanvas.jsx'
 import BboxList from './components/BboxList.jsx'
 import { fetchImageUrl, fetchAnnotation, saveAnnotation, inferBbox } from './api.js'
 
-let bboxCounter = 0
-const newId = () => `bbox-${++bboxCounter}`
+const newId = () => crypto.randomUUID()
+
+const snapshot = (bboxes, completed) => JSON.stringify({ bboxes, completed })
 
 export default function App() {
   const [page, setPage] = useState('gallery')
@@ -17,6 +18,9 @@ export default function App() {
   const [inferring, setInferring] = useState(null)
   const [saving, setSaving] = useState(false)
   const [saveStatus, setSaveStatus] = useState('')
+  const savedSnapshot = useRef('')
+
+  const isDirty = snapshot(bboxes, completed) !== savedSnapshot.current
 
   const openEditor = useCallback(async (filename) => {
     setSelected(filename)
@@ -24,8 +28,11 @@ export default function App() {
     setSelectedId(null)
     setCompleted(false)
     const data = await fetchAnnotation(filename)
-    setBboxes(data.connectors.map(c => ({ ...c, id: c.id || newId() })))
-    setCompleted(data.completed ?? false)
+    const loadedBboxes = data.connectors.map(c => ({ ...c, id: c.id || newId() }))
+    const loadedCompleted = data.completed ?? false
+    setBboxes(loadedBboxes)
+    setCompleted(loadedCompleted)
+    savedSnapshot.current = snapshot(loadedBboxes, loadedCompleted)
     setPage('editor')
   }, [])
 
@@ -74,6 +81,7 @@ export default function App() {
     setSaveStatus('')
     try {
       await saveAnnotation(selected, { image: selected, connectors: bboxes, completed })
+      savedSnapshot.current = snapshot(bboxes, completed)
       setSaveStatus('保存完了')
     } catch (e) {
       setSaveStatus('保存失敗')
@@ -82,7 +90,14 @@ export default function App() {
       setSaving(false)
       setTimeout(() => setSaveStatus(''), 2000)
     }
-  }, [selected, bboxes])
+  }, [selected, bboxes, completed])
+
+  const handleToggleCompleted = useCallback(async () => {
+    const next = !completed
+    setCompleted(next)
+    await saveAnnotation(selected, { image: selected, connectors: bboxes, completed: next })
+    savedSnapshot.current = snapshot(bboxes, next)
+  }, [selected, bboxes, completed])
 
   if (page === 'gallery') {
     return <GalleryPage key={galleryKey} onSelectImage={openEditor} />
@@ -104,24 +119,20 @@ export default function App() {
             }}
             style={{
               padding: '6px 14px', borderRadius: '4px', fontSize: '14px',
-              border: '1px solid #2a4060', background: 'transparent',
-              color: '#7a9cc0', cursor: 'pointer',
+              border: '1px solid #3a6090', background: '#1e3a5c',
+              color: '#a8ccee', cursor: 'pointer',
             }}
           >
             一覧へ
           </button>
           <button
-            onClick={async () => {
-              const next = !completed
-              setCompleted(next)
-              await saveAnnotation(selected, { image: selected, connectors: bboxes, completed: next })
-            }}
+            onClick={handleToggleCompleted}
             title={completed ? 'クリックで未完了に戻す' : 'クリックで完了にする'}
             style={{
               padding: '6px 14px', borderRadius: '4px', fontSize: '14px',
-              border: `1px solid ${completed ? '#00e676' : '#2a4060'}`,
-              background: completed ? '#0d3320' : 'transparent',
-              color: completed ? '#00e676' : '#7a9cc0',
+              border: `1px solid ${completed ? '#00e676' : '#4a6a8a'}`,
+              background: completed ? '#0d3320' : '#1e3448',
+              color: completed ? '#00e676' : '#c0d8f0',
               cursor: 'pointer', transition: 'all 0.2s',
             }}
           >
@@ -142,12 +153,13 @@ export default function App() {
           </button>
           <button
             onClick={handleSave}
-            disabled={!selected || saving}
+            disabled={!isDirty || saving}
             style={{
               padding: '6px 16px',
-              background: saveStatus === '保存完了' ? '#1b5e20' : saveStatus === '保存失敗' ? '#b71c1c' : !selected || saving ? '#2a3f55' : '#1a6b8a',
-              color: '#fff', border: 'none', borderRadius: '4px',
-              cursor: !selected || saving ? 'not-allowed' : 'pointer',
+              background: saveStatus === '保存完了' ? '#1b5e20' : saveStatus === '保存失敗' ? '#b71c1c' : !isDirty || saving ? '#2a3f55' : '#1a6b8a',
+              color: !isDirty && !saving ? '#4a6a8a' : '#fff',
+              border: 'none', borderRadius: '4px',
+              cursor: !isDirty || saving ? 'not-allowed' : 'pointer',
               display: 'flex', alignItems: 'center', gap: '6px',
               fontSize: '14px', minWidth: '90px', justifyContent: 'center',
               transition: 'background 0.2s',
