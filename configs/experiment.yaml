@@ -14,6 +14,6 @@ evaluation:
   iou_threshold: 0.5
 
 data:
-  samples_dir: data/samples
+  samples_dir: data/inputs
   ground_truth_dir: data/ground_truth
   outputs_dir: data/outputs

@@ -8,12 +8,12 @@ from annotator.backend.config import get_config, Config
 
 @pytest.fixture
 def tmp_data(tmp_path):
-    samples = tmp_path / "data" / "samples"
+    inputs = tmp_path / "data" / "inputs"
     ground_truth = tmp_path / "data" / "ground_truth"
-    samples.mkdir(parents=True)
+    inputs.mkdir(parents=True)
     ground_truth.mkdir(parents=True)
     img = Image.new("RGB", (200, 100), color=(128, 128, 128))
-    img.save(samples / "test.png")
+    img.save(inputs / "test.png")
     return tmp_path
 
 

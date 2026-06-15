@@ -19,7 +19,7 @@ def list_dirs(config: Config = Depends(get_config)):
 
 
 @router.get("/status")
-def get_status(dir: str = "samples", config: Config = Depends(get_config)):
+def get_status(dir: str = "inputs", config: Config = Depends(get_config)):
     target_dir = config.data_dir / dir
     gt_dir = config.data_dir / "ground_truth"
 
