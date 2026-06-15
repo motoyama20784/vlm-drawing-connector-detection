@@ -2,7 +2,7 @@
 FROM node:20-slim AS frontend-builder
 WORKDIR /frontend
 COPY annotator/frontend/package*.json ./
-RUN npm ci
+RUN npm install
 COPY annotator/frontend/ ./
 RUN npm run build
 
