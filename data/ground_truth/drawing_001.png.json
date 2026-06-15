@@ -1,0 +1,65 @@
+{
+  "image": "drawing_001.png",
+  "connectors": [
+    {
+      "id": "bbox-1",
+      "x_center": 0.15005044020119437,
+      "y_center": 0.13931354665596687,
+      "width": 0.11348352620258398,
+      "height": 0.11862341596448664,
+      "category": "メスコネクタ",
+      "vlm_text": "JIS ∇ 1 2 3 PS",
+      "vlm_shape": "circular"
+    },
+    {
+      "id": "bbox-2",
+      "x_center": 0.2641644304382371,
+      "y_center": 0.13931354665596687,
+      "width": 0.11222259813366638,
+      "height": 0.11862341596448664,
+      "category": "メスコネクタ",
+      "vlm_text": null,
+      "vlm_shape": null
+    },
+    {
+      "id": "bbox-3",
+      "x_center": 0.3814307408475739,
+      "y_center": 0.1413825597251149,
+      "width": 0.107178885857996,
+      "height": 0.11724407391838797,
+      "category": "オスコネクタ",
+      "vlm_text": null,
+      "vlm_shape": null
+    },
+    {
+      "id": "bbox-4",
+      "x_center": 0.4873486986366523,
+      "y_center": 0.14069288870206556,
+      "width": 0.10970074199583119,
+      "height": 0.11310604778009194,
+      "category": "メスコネクタ",
+      "vlm_text": null,
+      "vlm_shape": null
+    },
+    {
+      "id": "bbox-5",
+      "x_center": 0.6046150090459891,
+      "y_center": 0.14000321767901622,
+      "width": 0.10970074199583119,
+      "height": 0.11448538982619061,
+      "category": "オスコネクタ",
+      "vlm_text": null,
+      "vlm_shape": null
+    },
+    {
+      "id": "bbox-6",
+      "x_center": 0.7187289992830318,
+      "y_center": 0.1413825597251149,
+      "width": 0.11600538234041922,
+      "height": 0.1144853898261906,
+      "category": "オスコネクタ",
+      "vlm_text": null,
+      "vlm_shape": null
+    }
+  ]
+}

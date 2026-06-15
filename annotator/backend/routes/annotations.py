@@ -1,4 +1,5 @@
 import json
+from pathlib import Path
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel
 from typing import Optional
@@ -25,7 +26,7 @@ class AnnotationData(BaseModel):
 
 @router.get("/annotations/{filename}")
 def get_annotation(filename: str, config: Config = Depends(get_config)):
-    path = config.data_dir / "ground_truth" / f"{filename}.json"
+    path = config.data_dir / "ground_truth" / f"{Path(filename).stem}.json"
     if not path.exists():
         return {"image": filename, "connectors": []}
     with open(path, "r", encoding="utf-8") as f:
@@ -40,7 +41,7 @@ def save_annotation(
 ):
     gt_dir = config.data_dir / "ground_truth"
     gt_dir.mkdir(parents=True, exist_ok=True)
-    path = gt_dir / f"{filename}.json"
+    path = gt_dir / f"{Path(filename).stem}.json"
     with open(path, "w", encoding="utf-8") as f:
         json.dump(data.model_dump(), f, ensure_ascii=False, indent=2)
     return {"saved": str(path)}
