@@ -11,7 +11,5 @@ __pycache__/
 .env
 
 # データ（大容量ファイルはGit管理外）
-data/samples/*
-data/outputs/*
-!data/samples/.gitkeep
-!data/outputs/.gitkeep
+data
+
