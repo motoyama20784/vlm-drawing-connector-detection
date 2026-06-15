@@ -19,8 +19,13 @@ export default function App() {
   const [inferring, setInferring] = useState(null)
   const [saving, setSaving] = useState(false)
   const [saveStatus, setSaveStatus] = useState('')
+  const [sidebarWidth, setSidebarWidth] = useState(260)
+  const [dividerHover, setDividerHover] = useState(false)
   const savedSnapshot = useRef('')
   const bboxesRef = useRef([])
+  const isDragging = useRef(false)
+  const dragStartX = useRef(0)
+  const dragStartWidth = useRef(0)
   const bboxHistory = useRef([]) // undo stack
 
   // Keep bboxesRef in sync so handlers can read latest value without deps
@@ -38,6 +43,35 @@ export default function App() {
     bboxHistory.current = bboxHistory.current.slice(0, -1)
     setBboxes(prev)
     setSelectedId(null)
+  }, [])
+
+  // Divider drag
+  const handleDividerMouseDown = useCallback((e) => {
+    isDragging.current = true
+    dragStartX.current = e.clientX
+    dragStartWidth.current = sidebarWidth
+    document.body.style.cursor = 'col-resize'
+    document.body.style.userSelect = 'none'
+  }, [sidebarWidth])
+
+  useEffect(() => {
+    const onMove = (e) => {
+      if (!isDragging.current) return
+      const delta = dragStartX.current - e.clientX
+      setSidebarWidth(Math.max(160, Math.min(600, dragStartWidth.current + delta)))
+    }
+    const onUp = () => {
+      if (!isDragging.current) return
+      isDragging.current = false
+      document.body.style.cursor = ''
+      document.body.style.userSelect = ''
+    }
+    window.addEventListener('mousemove', onMove)
+    window.addEventListener('mouseup', onUp)
+    return () => {
+      window.removeEventListener('mousemove', onMove)
+      window.removeEventListener('mouseup', onUp)
+    }
   }, [])
 
   // Ctrl+Z undo (editor only)
@@ -237,7 +271,33 @@ export default function App() {
             onSelect={setSelectedId}
           />
         </div>
-        <div style={{ width: '260px', borderLeft: '1px solid #1e3a5f', display: 'flex', flexDirection: 'column', background: '#0f2035' }}>
+
+        {/* Resizer */}
+        <div
+          onMouseDown={handleDividerMouseDown}
+          onMouseEnter={() => setDividerHover(true)}
+          onMouseLeave={() => setDividerHover(false)}
+          style={{
+            width: '5px', flexShrink: 0, cursor: 'col-resize',
+            background: dividerHover ? '#2a6090' : '#1a3050',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            transition: 'background 0.15s',
+            position: 'relative',
+          }}
+        >
+          <div style={{
+            display: 'flex', flexDirection: 'column', gap: '3px', pointerEvents: 'none',
+          }}>
+            {[0,1,2].map(i => (
+              <div key={i} style={{
+                width: '3px', height: '3px', borderRadius: '50%',
+                background: dividerHover ? '#7ab8e8' : '#3a5a7a',
+              }} />
+            ))}
+          </div>
+        </div>
+
+        <div style={{ width: `${sidebarWidth}px`, display: 'flex', flexDirection: 'column', background: '#0f2035', flexShrink: 0 }}>
           <div style={{ padding: '8px', borderBottom: '1px solid #1e3a5f', fontSize: '13px', color: '#7a9cc0' }}>
             Bbox 一覧 ({bboxes.length})
           </div>
