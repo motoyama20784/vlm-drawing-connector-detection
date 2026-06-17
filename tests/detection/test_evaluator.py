@@ -180,3 +180,75 @@ def test_unmatched_gts_empty_when_all_matched():
     box = {"x_center": 0.5, "y_center": 0.5, "width": 0.1, "height": 0.1}
     m = evaluate([box], [box])
     assert m["unmatched_gts"] == []
+
+
+# ---------------------------------------------------------------------------
+# [B] near_fp_count / near_fp_rate
+# ---------------------------------------------------------------------------
+
+def test_near_fp_is_zero_when_perfect():
+    box = {"x_center": 0.5, "y_center": 0.5, "width": 0.1, "height": 0.1}
+    m = evaluate([box], [box])
+    assert m["near_fp_count"] == 0
+    assert m["near_fp_rate"] == pytest.approx(0.0)
+
+
+def test_near_fp_ghost_is_not_counted():
+    # GT と全く重ならない pred → ghost FP（near FP ではない）
+    pred = {"x_center": 0.9, "y_center": 0.9, "width": 0.1, "height": 0.1}
+    gt   = {"x_center": 0.1, "y_center": 0.1, "width": 0.1, "height": 0.1}
+    m = evaluate([pred], [gt])
+    assert m["near_fp_count"] == 0
+
+
+def test_near_fp_detected():
+    # pred が GT に近いが IoU < 0.5（near FP）
+    pred = {"x_center": 0.55, "y_center": 0.5, "width": 0.1, "height": 0.1}
+    gt   = {"x_center": 0.5,  "y_center": 0.5, "width": 0.1, "height": 0.1}
+    iou = compute_iou(pred, gt)
+    assert 0.1 <= iou < 0.5  # near FP の前提確認
+
+    m = evaluate([pred], [gt], iou_threshold=0.5)
+    assert m["near_fp_count"] == 1
+    assert m["near_fp_rate"] == pytest.approx(1.0)
+
+
+def test_near_fp_rate_with_mixed_preds():
+    # pred1: TP、pred2: near FP、pred3: ghost FP
+    gt1  = {"x_center": 0.2, "y_center": 0.5, "width": 0.1, "height": 0.1}
+    gt2  = {"x_center": 0.8, "y_center": 0.5, "width": 0.1, "height": 0.1}
+    tp   = gt1
+    near = {"x_center": 0.85, "y_center": 0.5, "width": 0.1, "height": 0.1}
+    ghost = {"x_center": 0.5,  "y_center": 0.0, "width": 0.05, "height": 0.05}
+
+    iou_near  = compute_iou(near,  gt2)
+    iou_ghost = compute_iou(ghost, gt1)
+    assert 0.1 <= iou_near < 0.5
+    assert iou_ghost < 0.1
+
+    m = evaluate([tp, near, ghost], [gt1, gt2], iou_threshold=0.5)
+    assert m["tp"] == 1
+    assert m["near_fp_count"] == 1
+    assert m["near_fp_rate"] == pytest.approx(1 / 3)
+
+
+def test_near_fp_custom_near_iou_min():
+    # near_iou_min を変えると分類が変わることを確認
+    pred = {"x_center": 0.55, "y_center": 0.5, "width": 0.1, "height": 0.1}
+    gt   = {"x_center": 0.5,  "y_center": 0.5, "width": 0.1, "height": 0.1}
+    iou = compute_iou(pred, gt)
+
+    # iou より大きい near_iou_min を設定 → near FP にならない
+    m = evaluate([pred], [gt], iou_threshold=0.5, near_iou_min=iou + 0.01)
+    assert m["near_fp_count"] == 0
+
+    # iou 以下の near_iou_min を設定 → near FP になる
+    m = evaluate([pred], [gt], iou_threshold=0.5, near_iou_min=iou - 0.01)
+    assert m["near_fp_count"] == 1
+
+
+def test_near_fp_no_gt():
+    pred = {"x_center": 0.5, "y_center": 0.5, "width": 0.1, "height": 0.1}
+    m = evaluate([pred], [])
+    assert m["near_fp_count"] == 0
+    assert m["near_fp_rate"] == pytest.approx(0.0)
