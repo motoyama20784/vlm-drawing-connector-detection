@@ -54,6 +54,25 @@ services:
     stdin_open: true
     tty: true
 
+  annotator:
+    build:
+      context: .
+      dockerfile: docker/annotator/Dockerfile
+    container_name: annotator
+    restart: unless-stopped
+    ports:
+      - "${ANNOTATOR_PORT:-8000}:8000"
+    volumes:
+      - ./data:/app/data
+      - ./prompts:/app/prompts
+    environment:
+      - OLLAMA_BASE_URL=http://ollama:11434
+      - MODEL=${MODEL:-gemma4:26b}
+      - DATA_DIR=/app/data
+      - ANNOTATOR_PROMPT_FILE=/app/prompts/annotator/v1.txt
+    depends_on:
+      - ollama
+
 volumes:
   ollama_data:
     external: true

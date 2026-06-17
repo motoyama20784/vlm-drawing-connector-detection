@@ -1,0 +1,4 @@
+この図面を解析してください
+以下のJSON形式のみで回答してください：
+{"vlm_text": "画像内のテキストや記号", "vlm_shape": "形状の種類（例: rectangular, circular, line など）"}
+テキストがなければ vlm_text は空文字にしてください。
