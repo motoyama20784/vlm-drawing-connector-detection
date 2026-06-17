@@ -327,3 +327,55 @@ def test_ghost_fp_no_pred():
     m = evaluate([], [{"x_center": 0.5, "y_center": 0.5, "width": 0.1, "height": 0.1}])
     assert m["ghost_fp_count"] == 0
     assert m["ghost_fp_rate"] == pytest.approx(0.0)
+
+
+# ---------------------------------------------------------------------------
+# [C] avg_matched_iou
+# ---------------------------------------------------------------------------
+
+def test_avg_matched_iou_perfect():
+    box = {"x_center": 0.5, "y_center": 0.5, "width": 0.1, "height": 0.1}
+    m = evaluate([box], [box])
+    assert m["avg_matched_iou"] == pytest.approx(1.0)
+
+
+def test_avg_matched_iou_no_tp():
+    # TP なし → 0.0
+    pred = {"x_center": 0.9, "y_center": 0.9, "width": 0.1, "height": 0.1}
+    gt   = {"x_center": 0.1, "y_center": 0.1, "width": 0.1, "height": 0.1}
+    m = evaluate([pred], [gt])
+    assert m["avg_matched_iou"] == pytest.approx(0.0)
+
+
+def test_avg_matched_iou_no_pred():
+    gt = {"x_center": 0.5, "y_center": 0.5, "width": 0.1, "height": 0.1}
+    m = evaluate([], [gt])
+    assert m["avg_matched_iou"] == pytest.approx(0.0)
+
+
+def test_avg_matched_iou_partial_overlap():
+    # pred が GT より少しズレている場合、IoU < 1.0 になる
+    pred = {"x_center": 0.52, "y_center": 0.5, "width": 0.1, "height": 0.1}
+    gt   = {"x_center": 0.5,  "y_center": 0.5, "width": 0.1, "height": 0.1}
+    iou = compute_iou(pred, gt)
+    assert iou >= 0.5  # TP になる前提確認
+
+    m = evaluate([pred], [gt])
+    assert m["tp"] == 1
+    assert m["avg_matched_iou"] == pytest.approx(iou)
+
+
+def test_avg_matched_iou_is_mean_of_all_tps():
+    # 複数 TP の平均になっていることを確認
+    box1 = {"x_center": 0.2, "y_center": 0.5, "width": 0.1, "height": 0.1}
+    box2 = {"x_center": 0.8, "y_center": 0.5, "width": 0.1, "height": 0.1}
+    pred1 = {"x_center": 0.22, "y_center": 0.5, "width": 0.1, "height": 0.1}
+    pred2 = {"x_center": 0.82, "y_center": 0.5, "width": 0.1, "height": 0.1}
+
+    iou1 = compute_iou(pred1, box1)
+    iou2 = compute_iou(pred2, box2)
+    assert iou1 >= 0.5 and iou2 >= 0.5  # 両方 TP になる前提確認
+
+    m = evaluate([pred1, pred2], [box1, box2])
+    assert m["tp"] == 2
+    assert m["avg_matched_iou"] == pytest.approx((iou1 + iou2) / 2)

@@ -96,6 +96,7 @@ def evaluate(
         miss_rate              : [A] FN / GT総数（見逃し率）
         near_fp_count          : [B] near FP の件数
         near_fp_rate           : [B] near FP / pred総数
+        avg_matched_iou        : [C] TP の IoU の平均（TP なしの場合は 0.0）
         ghost_fp_count         : [D] ghost FP の件数
         ghost_fp_rate          : [D] ghost FP / pred総数
         matched_pairs          : TP の (pred_idx, gt_idx, iou) リスト  ← C/E/F で使用
@@ -108,6 +109,7 @@ def evaluate(
             "tp": 0, "fp": 0, "fn": 0,
             "miss_rate": 0.0,
             "near_fp_count": 0, "near_fp_rate": 0.0,
+            "avg_matched_iou": 0.0,
             "ghost_fp_count": 0, "ghost_fp_rate": 0.0,
             "matched_pairs": [],
             "unmatched_preds": [],
@@ -122,6 +124,7 @@ def evaluate(
             "tp": 0, "fp": n, "fn": 0,
             "miss_rate": 0.0,
             "near_fp_count": 0, "near_fp_rate": 0.0,
+            "avg_matched_iou": 0.0,
             "ghost_fp_count": n, "ghost_fp_rate": 1.0,
             "matched_pairs": [],
             "unmatched_preds": [
@@ -137,6 +140,7 @@ def evaluate(
             "tp": 0, "fp": 0, "fn": len(gt_boxes),
             "miss_rate": 1.0,
             "near_fp_count": 0, "near_fp_rate": 0.0,
+            "avg_matched_iou": 0.0,
             "ghost_fp_count": 0, "ghost_fp_rate": 0.0,
             "matched_pairs": [],
             "unmatched_preds": [],
@@ -166,6 +170,9 @@ def evaluate(
     near_fp_rate  = near_fp_count  / n_pred
     ghost_fp_rate = ghost_fp_count / n_pred
 
+    pairs = matching["matched_pairs"]
+    avg_matched_iou = sum(p["iou"] for p in pairs) / len(pairs) if pairs else 0.0
+
     return {
         "precision": precision,
         "recall": recall,
@@ -176,6 +183,7 @@ def evaluate(
         "miss_rate": miss_rate,
         "near_fp_count": near_fp_count,
         "near_fp_rate": near_fp_rate,
+        "avg_matched_iou": avg_matched_iou,
         "ghost_fp_count": ghost_fp_count,
         "ghost_fp_rate": ghost_fp_rate,
         "matched_pairs": matching["matched_pairs"],
