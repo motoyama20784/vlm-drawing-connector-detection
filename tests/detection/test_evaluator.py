@@ -252,3 +252,78 @@ def test_near_fp_no_gt():
     m = evaluate([pred], [])
     assert m["near_fp_count"] == 0
     assert m["near_fp_rate"] == pytest.approx(0.0)
+
+
+# ---------------------------------------------------------------------------
+# [D] ghost_fp_count / ghost_fp_rate
+# ---------------------------------------------------------------------------
+
+def test_ghost_fp_is_zero_when_perfect():
+    box = {"x_center": 0.5, "y_center": 0.5, "width": 0.1, "height": 0.1}
+    m = evaluate([box], [box])
+    assert m["ghost_fp_count"] == 0
+    assert m["ghost_fp_rate"] == pytest.approx(0.0)
+
+
+def test_ghost_fp_detected():
+    # GT と全く重ならない pred → ghost FP
+    pred = {"x_center": 0.9, "y_center": 0.9, "width": 0.1, "height": 0.1}
+    gt   = {"x_center": 0.1, "y_center": 0.1, "width": 0.1, "height": 0.1}
+    assert compute_iou(pred, gt) < 0.1  # ghost FP の前提確認
+
+    m = evaluate([pred], [gt])
+    assert m["ghost_fp_count"] == 1
+    assert m["ghost_fp_rate"] == pytest.approx(1.0)
+
+
+def test_ghost_fp_near_fp_not_counted():
+    # GT に近い pred（near FP）は ghost FP に含まれない
+    pred = {"x_center": 0.55, "y_center": 0.5, "width": 0.1, "height": 0.1}
+    gt   = {"x_center": 0.5,  "y_center": 0.5, "width": 0.1, "height": 0.1}
+    iou = compute_iou(pred, gt)
+    assert 0.1 <= iou < 0.5  # near FP の前提確認
+
+    m = evaluate([pred], [gt], iou_threshold=0.5)
+    assert m["ghost_fp_count"] == 0
+
+
+def test_ghost_fp_rate_with_mixed_preds():
+    # pred1: TP、pred2: near FP、pred3: ghost FP
+    gt1   = {"x_center": 0.2, "y_center": 0.5, "width": 0.1, "height": 0.1}
+    gt2   = {"x_center": 0.8, "y_center": 0.5, "width": 0.1, "height": 0.1}
+    tp    = gt1
+    near  = {"x_center": 0.85, "y_center": 0.5, "width": 0.1, "height": 0.1}
+    ghost = {"x_center": 0.5,  "y_center": 0.0, "width": 0.05, "height": 0.05}
+
+    assert compute_iou(ghost, gt1) < 0.1
+    assert compute_iou(ghost, gt2) < 0.1
+
+    m = evaluate([tp, near, ghost], [gt1, gt2], iou_threshold=0.5)
+    assert m["ghost_fp_count"] == 1
+    assert m["ghost_fp_rate"] == pytest.approx(1 / 3)
+
+
+def test_ghost_fp_and_near_fp_are_exhaustive():
+    # near_fp + ghost_fp = fp（全 FP の内訳として過不足ない）
+    gt1   = {"x_center": 0.2, "y_center": 0.5, "width": 0.1, "height": 0.1}
+    gt2   = {"x_center": 0.8, "y_center": 0.5, "width": 0.1, "height": 0.1}
+    tp    = gt1
+    near  = {"x_center": 0.85, "y_center": 0.5, "width": 0.1, "height": 0.1}
+    ghost = {"x_center": 0.5,  "y_center": 0.0, "width": 0.05, "height": 0.05}
+
+    m = evaluate([tp, near, ghost], [gt1, gt2], iou_threshold=0.5)
+    assert m["near_fp_count"] + m["ghost_fp_count"] == m["fp"]
+
+
+def test_ghost_fp_no_gt():
+    # GT なし → 全 pred が ghost FP
+    pred = {"x_center": 0.5, "y_center": 0.5, "width": 0.1, "height": 0.1}
+    m = evaluate([pred], [])
+    assert m["ghost_fp_count"] == 1
+    assert m["ghost_fp_rate"] == pytest.approx(1.0)
+
+
+def test_ghost_fp_no_pred():
+    m = evaluate([], [{"x_center": 0.5, "y_center": 0.5, "width": 0.1, "height": 0.1}])
+    assert m["ghost_fp_count"] == 0
+    assert m["ghost_fp_rate"] == pytest.approx(0.0)

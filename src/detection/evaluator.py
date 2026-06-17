@@ -86,8 +86,9 @@ def evaluate(
 
     Args:
         iou_threshold : TP と判定する IoU の下限（デフォルト 0.5）
-        near_iou_min  : [B] near FP と判定する IoU の下限（デフォルト 0.1）
-                        near_iou_min ≤ max_iou_to_gt < iou_threshold を near FP とする
+        near_iou_min  : [B/D] near FP と ghost FP の境界 IoU（デフォルト 0.1）
+                        near_iou_min ≤ max_iou_to_gt < iou_threshold → near FP  [B]
+                        max_iou_to_gt < near_iou_min                 → ghost FP [D]
 
     Returns (常に以下のキーを含む):
         precision, recall, f1  : 基本指標
@@ -95,6 +96,8 @@ def evaluate(
         miss_rate              : [A] FN / GT総数（見逃し率）
         near_fp_count          : [B] near FP の件数
         near_fp_rate           : [B] near FP / pred総数
+        ghost_fp_count         : [D] ghost FP の件数
+        ghost_fp_rate          : [D] ghost FP / pred総数
         matched_pairs          : TP の (pred_idx, gt_idx, iou) リスト  ← C/E/F で使用
         unmatched_preds        : FP の (pred_idx, max_iou_to_gt) リスト ← B/D で使用
         unmatched_gts          : FN の (gt_idx,) リスト               ← A/F で使用
@@ -105,21 +108,25 @@ def evaluate(
             "tp": 0, "fp": 0, "fn": 0,
             "miss_rate": 0.0,
             "near_fp_count": 0, "near_fp_rate": 0.0,
+            "ghost_fp_count": 0, "ghost_fp_rate": 0.0,
             "matched_pairs": [],
             "unmatched_preds": [],
             "unmatched_gts": [],
         }
 
     if not gt_boxes:
+        # GT なし → 全 pred が ghost FP（近づく GT 自体が存在しない）
+        n = len(pred_boxes)
         return {
             "precision": 0.0, "recall": 1.0, "f1": 0.0,
-            "tp": 0, "fp": len(pred_boxes), "fn": 0,
+            "tp": 0, "fp": n, "fn": 0,
             "miss_rate": 0.0,
             "near_fp_count": 0, "near_fp_rate": 0.0,
+            "ghost_fp_count": n, "ghost_fp_rate": 1.0,
             "matched_pairs": [],
             "unmatched_preds": [
                 {"pred_idx": i, "max_iou_to_gt": 0.0}
-                for i in range(len(pred_boxes))
+                for i in range(n)
             ],
             "unmatched_gts": [],
         }
@@ -130,6 +137,7 @@ def evaluate(
             "tp": 0, "fp": 0, "fn": len(gt_boxes),
             "miss_rate": 1.0,
             "near_fp_count": 0, "near_fp_rate": 0.0,
+            "ghost_fp_count": 0, "ghost_fp_rate": 0.0,
             "matched_pairs": [],
             "unmatched_preds": [],
             "unmatched_gts": [{"gt_idx": j} for j in range(len(gt_boxes))],
@@ -150,7 +158,13 @@ def evaluate(
         1 for p in matching["unmatched_preds"]
         if p["max_iou_to_gt"] >= near_iou_min
     )
-    near_fp_rate = near_fp_count / len(pred_boxes)
+    ghost_fp_count = sum(
+        1 for p in matching["unmatched_preds"]
+        if p["max_iou_to_gt"] < near_iou_min
+    )
+    n_pred = len(pred_boxes)
+    near_fp_rate  = near_fp_count  / n_pred
+    ghost_fp_rate = ghost_fp_count / n_pred
 
     return {
         "precision": precision,
@@ -162,6 +176,8 @@ def evaluate(
         "miss_rate": miss_rate,
         "near_fp_count": near_fp_count,
         "near_fp_rate": near_fp_rate,
+        "ghost_fp_count": ghost_fp_count,
+        "ghost_fp_rate": ghost_fp_rate,
         "matched_pairs": matching["matched_pairs"],
         "unmatched_preds": matching["unmatched_preds"],
         "unmatched_gts": matching["unmatched_gts"],
