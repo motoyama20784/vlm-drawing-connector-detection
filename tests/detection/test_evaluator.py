@@ -439,3 +439,78 @@ def test_duplicate_gt_no_gt():
     m = evaluate([pred], [])
     assert m["duplicate_gt_count"] == 0
     assert m["duplicate_gt_rate"] == pytest.approx(0.0)
+
+
+# ---------------------------------------------------------------------------
+# [F] merged_pred_count / merged_pred_rate
+# ---------------------------------------------------------------------------
+
+def test_merged_pred_zero_when_perfect():
+    box = {"x_center": 0.5, "y_center": 0.5, "width": 0.1, "height": 0.1}
+    m = evaluate([box], [box])
+    assert m["merged_pred_count"] == 0
+    assert m["merged_pred_rate"] == pytest.approx(0.0)
+
+
+def test_merged_pred_detected():
+    # pred が隣接する2つの GT をちょうど覆う → 合算検出
+    # gt1: x[0.1, 0.3], gt2: x[0.3, 0.5], pred: x[0.1, 0.5]
+    # IoU = 0.5 exactly だが浮動小数点誤差を避けるため iou_threshold=0.4 を使用
+    gt1  = {"x_center": 0.2, "y_center": 0.5, "width": 0.2, "height": 0.2}
+    gt2  = {"x_center": 0.4, "y_center": 0.5, "width": 0.2, "height": 0.2}
+    pred = {"x_center": 0.3, "y_center": 0.5, "width": 0.4, "height": 0.2}
+
+    assert compute_iou(pred, gt1) >= 0.4
+    assert compute_iou(pred, gt2) >= 0.4
+
+    m = evaluate([pred], [gt1, gt2], iou_threshold=0.4)
+    assert m["merged_pred_count"] == 1
+    assert m["merged_pred_rate"] == pytest.approx(1.0)
+    # greedy で片方は TP、もう片方は FN になる
+    assert m["tp"] == 1
+    assert m["fn"] == 1
+
+
+def test_merged_pred_partial():
+    # pred1 が合算検出、pred2 は正常
+    gt1   = {"x_center": 0.2, "y_center": 0.5, "width": 0.2, "height": 0.2}
+    gt2   = {"x_center": 0.4, "y_center": 0.5, "width": 0.2, "height": 0.2}
+    pred1 = {"x_center": 0.3, "y_center": 0.5, "width": 0.4, "height": 0.2}
+    gt3   = {"x_center": 0.5, "y_center": 0.9, "width": 0.1, "height": 0.1}
+    pred2 = gt3
+
+    assert compute_iou(pred1, gt1) >= 0.4
+    assert compute_iou(pred1, gt2) >= 0.4
+    assert compute_iou(pred2, gt3) >= 0.4
+
+    m = evaluate([pred1, pred2], [gt1, gt2, gt3], iou_threshold=0.4)
+    assert m["merged_pred_count"] == 1
+    assert m["merged_pred_rate"] == pytest.approx(0.5)
+
+
+def test_merged_pred_no_pred():
+    gt = {"x_center": 0.5, "y_center": 0.5, "width": 0.1, "height": 0.1}
+    m = evaluate([], [gt])
+    assert m["merged_pred_count"] == 0
+    assert m["merged_pred_rate"] == pytest.approx(0.0)
+
+
+def test_merged_pred_no_gt():
+    pred = {"x_center": 0.5, "y_center": 0.5, "width": 0.1, "height": 0.1}
+    m = evaluate([pred], [])
+    assert m["merged_pred_count"] == 0
+    assert m["merged_pred_rate"] == pytest.approx(0.0)
+
+
+def test_merged_pred_fn_looks_like_miss():
+    # F は Recall だと A（見逃し）と区別できないことを確認
+    gt1  = {"x_center": 0.2, "y_center": 0.5, "width": 0.2, "height": 0.2}
+    gt2  = {"x_center": 0.4, "y_center": 0.5, "width": 0.2, "height": 0.2}
+    pred = {"x_center": 0.3, "y_center": 0.5, "width": 0.4, "height": 0.2}
+
+    m = evaluate([pred], [gt1, gt2], iou_threshold=0.4)
+    # Recall = 0.5（FN=1）は A と同じ見え方
+    assert m["recall"] == pytest.approx(0.5)
+    assert m["fn"] == 1
+    # merged_pred_count で F 由来だとわかる
+    assert m["merged_pred_count"] == 1
