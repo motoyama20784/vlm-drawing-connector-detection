@@ -28,10 +28,6 @@ def run_experiment(config_path: str) -> None:
     with open(config_path) as f:
         config = yaml.safe_load(f)
 
-    model_env = os.getenv("MODEL")
-    if model_env:
-        config["model"] = model_env
-
     with open(config["prompt"]["file"]) as f:
         prompt_text = f.read()
 
@@ -42,7 +38,6 @@ def run_experiment(config_path: str) -> None:
     mlflow.set_experiment("connector-detection")
 
     print_model_info(config["model"])
-    print_gpu_usage()
 
     with mlflow.start_run():
         mlflow.log_param("model", config["model"])
@@ -51,7 +46,13 @@ def run_experiment(config_path: str) -> None:
         mlflow.log_param("temperature", config["params"]["temperature"])
         mlflow.log_param("top_p", config["params"]["top_p"])
         mlflow.log_param("top_k", config["params"]["top_k"])
-        mlflow.log_param("seed", config["params"].get("seed", 42))   
+        mlflow.log_param("seed", config["params"].get("seed", 42))
+        if "num_ctx" in config["params"]:
+            mlflow.log_param("num_ctx", config["params"]["num_ctx"])
+        if "think" in config["params"]:
+            mlflow.log_param("think", config["params"]["think"])
+        if "thinking_timeout_seconds" in config["params"]:
+            mlflow.log_param("thinking_timeout_seconds", config["params"]["thinking_timeout_seconds"])
         mlflow.log_param("iou_threshold", config["evaluation"]["iou_threshold"])
 
         model_info = get_model_info(config["model"])
@@ -59,6 +60,9 @@ def run_experiment(config_path: str) -> None:
             mlflow.log_param("model_family", model_info.get("family", "unknown"))
             mlflow.log_param("model_parameter_size", model_info.get("parameter_size", "unknown"))
             mlflow.log_param("model_quantization", model_info.get("quantization_level", "unknown"))
+            if model_info.get("quantization_level") in ("F16", "BF16"):
+                config["params"].setdefault("num_ctx", 8192)
+                print(f"[num_ctx] F16/BF16モデルのため num_ctx={config['params']['num_ctx']} を適用")
 
         gpu_usage = get_gpu_usage()
         if "error" not in gpu_usage and gpu_usage.get("loaded_models"):

@@ -10,6 +10,7 @@ params:
   top_p: 0.9
   top_k: 40
   seed: 42
+  thinking_timeout_seconds: 600
 
 evaluation:
   iou_threshold: 0.5

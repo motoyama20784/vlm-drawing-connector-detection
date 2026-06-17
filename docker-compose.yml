@@ -48,7 +48,7 @@ services:
     environment:
       - OLLAMA_BASE_URL=http://ollama:11434
       - MLFLOW_TRACKING_URI=http://mlflow:5000
-      - MODEL=${MODEL:-gemma4:26b}
+      - MODEL=${MODEL}
       - PYTHONPATH=/app
       - GIT_PYTHON_REFRESH=quiet
     stdin_open: true
@@ -67,7 +67,7 @@ services:
       - ./prompts:/app/prompts
     environment:
       - OLLAMA_BASE_URL=http://ollama:11434
-      - MODEL=${MODEL:-gemma4:26b}
+      - MODEL=${MODEL}
       - DATA_DIR=/app/data
       - ANNOTATOR_PROMPT_FILE=/app/prompts/annotator/v1.txt
     depends_on:
