@@ -28,6 +28,10 @@ def run_experiment(config_path: str) -> None:
     with open(config_path) as f:
         config = yaml.safe_load(f)
 
+    model_env = os.getenv("MODEL")
+    if model_env:
+        config["model"] = model_env
+
     with open(config["prompt"]["file"]) as f:
         prompt_text = f.read()
 
