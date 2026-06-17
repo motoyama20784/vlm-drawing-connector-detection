@@ -1,4 +1,5 @@
-model: gemma4:26b
+# model: gemma4:26b
+model: gemma4:31b-it-bf16
 
 prompt:
   type: zero_shot
