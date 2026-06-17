@@ -42,6 +42,13 @@ def _match_boxes(pred_boxes: list, gt_boxes: list, iou_threshold: float) -> dict
         for i in range(len(pred_boxes))
     ]
 
+    # 各 GT に IoU ≥ iou_threshold の pred が何個あるか（E: 重複検出の検出に使用）
+    gt_candidates: dict[int, list[int]] = {j: [] for j in range(n_gt)}
+    for i, row in enumerate(iou_matrix):
+        for j, iou in enumerate(row):
+            if iou >= iou_threshold:
+                gt_candidates[j].append(i)
+
     matched_gt = set()
     matched_pred = set()
     matched_pairs = []
@@ -72,6 +79,7 @@ def _match_boxes(pred_boxes: list, gt_boxes: list, iou_threshold: float) -> dict
         "matched_pairs": matched_pairs,
         "unmatched_preds": unmatched_preds,
         "unmatched_gts": unmatched_gts,
+        "gt_candidates": gt_candidates,
     }
 
 
@@ -99,6 +107,8 @@ def evaluate(
         avg_matched_iou        : [C] TP の IoU の平均（TP なしの場合は 0.0）
         ghost_fp_count         : [D] ghost FP の件数
         ghost_fp_rate          : [D] ghost FP / pred総数
+        duplicate_gt_count     : [E] 候補 pred が 2 つ以上あった GT box の数
+        duplicate_gt_rate      : [E] duplicate_gt_count / GT 総数
         matched_pairs          : TP の (pred_idx, gt_idx, iou) リスト  ← C/E/F で使用
         unmatched_preds        : FP の (pred_idx, max_iou_to_gt) リスト ← B/D で使用
         unmatched_gts          : FN の (gt_idx,) リスト               ← A/F で使用
@@ -111,6 +121,7 @@ def evaluate(
             "near_fp_count": 0, "near_fp_rate": 0.0,
             "avg_matched_iou": 0.0,
             "ghost_fp_count": 0, "ghost_fp_rate": 0.0,
+            "duplicate_gt_count": 0, "duplicate_gt_rate": 0.0,
             "matched_pairs": [],
             "unmatched_preds": [],
             "unmatched_gts": [],
@@ -126,6 +137,7 @@ def evaluate(
             "near_fp_count": 0, "near_fp_rate": 0.0,
             "avg_matched_iou": 0.0,
             "ghost_fp_count": n, "ghost_fp_rate": 1.0,
+            "duplicate_gt_count": 0, "duplicate_gt_rate": 0.0,
             "matched_pairs": [],
             "unmatched_preds": [
                 {"pred_idx": i, "max_iou_to_gt": 0.0}
@@ -142,6 +154,7 @@ def evaluate(
             "near_fp_count": 0, "near_fp_rate": 0.0,
             "avg_matched_iou": 0.0,
             "ghost_fp_count": 0, "ghost_fp_rate": 0.0,
+            "duplicate_gt_count": 0, "duplicate_gt_rate": 0.0,
             "matched_pairs": [],
             "unmatched_preds": [],
             "unmatched_gts": [{"gt_idx": j} for j in range(len(gt_boxes))],
@@ -173,6 +186,12 @@ def evaluate(
     pairs = matching["matched_pairs"]
     avg_matched_iou = sum(p["iou"] for p in pairs) / len(pairs) if pairs else 0.0
 
+    duplicate_gt_count = sum(
+        1 for candidates in matching["gt_candidates"].values()
+        if len(candidates) >= 2
+    )
+    duplicate_gt_rate = duplicate_gt_count / len(gt_boxes)
+
     return {
         "precision": precision,
         "recall": recall,
@@ -186,6 +205,8 @@ def evaluate(
         "avg_matched_iou": avg_matched_iou,
         "ghost_fp_count": ghost_fp_count,
         "ghost_fp_rate": ghost_fp_rate,
+        "duplicate_gt_count": duplicate_gt_count,
+        "duplicate_gt_rate": duplicate_gt_rate,
         "matched_pairs": matching["matched_pairs"],
         "unmatched_preds": matching["unmatched_preds"],
         "unmatched_gts": matching["unmatched_gts"],

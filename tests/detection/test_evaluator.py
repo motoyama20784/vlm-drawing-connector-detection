@@ -379,3 +379,63 @@ def test_avg_matched_iou_is_mean_of_all_tps():
     m = evaluate([pred1, pred2], [box1, box2])
     assert m["tp"] == 2
     assert m["avg_matched_iou"] == pytest.approx((iou1 + iou2) / 2)
+
+
+# ---------------------------------------------------------------------------
+# [E] duplicate_gt_count / duplicate_gt_rate
+# ---------------------------------------------------------------------------
+
+def test_duplicate_gt_zero_when_perfect():
+    box = {"x_center": 0.5, "y_center": 0.5, "width": 0.1, "height": 0.1}
+    m = evaluate([box], [box])
+    assert m["duplicate_gt_count"] == 0
+    assert m["duplicate_gt_rate"] == pytest.approx(0.0)
+
+
+def test_duplicate_gt_detected():
+    # 同じ GT に対して pred が2つともIoU >= 0.5 → 重複検出
+    gt    = {"x_center": 0.5,  "y_center": 0.5, "width": 0.2, "height": 0.2}
+    pred1 = {"x_center": 0.5,  "y_center": 0.5, "width": 0.2, "height": 0.2}
+    pred2 = {"x_center": 0.51, "y_center": 0.5, "width": 0.2, "height": 0.2}
+
+    assert compute_iou(pred1, gt) >= 0.5
+    assert compute_iou(pred2, gt) >= 0.5
+
+    m = evaluate([pred1, pred2], [gt])
+    assert m["duplicate_gt_count"] == 1
+    assert m["duplicate_gt_rate"] == pytest.approx(1.0)
+    # greedy で片方は TP、もう片方は FP になる
+    assert m["tp"] == 1
+    assert m["fp"] == 1
+
+
+def test_duplicate_gt_partial():
+    # GT が2つ：片方は重複、片方は正常
+    gt1   = {"x_center": 0.2,  "y_center": 0.5, "width": 0.2, "height": 0.2}
+    gt2   = {"x_center": 0.8,  "y_center": 0.5, "width": 0.1, "height": 0.1}
+    pred1 = {"x_center": 0.2,  "y_center": 0.5, "width": 0.2, "height": 0.2}
+    pred2 = {"x_center": 0.21, "y_center": 0.5, "width": 0.2, "height": 0.2}
+    pred3 = gt2  # gt2 に対する正常な pred
+
+    assert compute_iou(pred1, gt1) >= 0.5
+    assert compute_iou(pred2, gt1) >= 0.5
+    assert compute_iou(pred1, gt2) < 0.5
+    assert compute_iou(pred2, gt2) < 0.5
+
+    m = evaluate([pred1, pred2, pred3], [gt1, gt2])
+    assert m["duplicate_gt_count"] == 1
+    assert m["duplicate_gt_rate"] == pytest.approx(0.5)
+
+
+def test_duplicate_gt_no_pred():
+    gt = {"x_center": 0.5, "y_center": 0.5, "width": 0.1, "height": 0.1}
+    m = evaluate([], [gt])
+    assert m["duplicate_gt_count"] == 0
+    assert m["duplicate_gt_rate"] == pytest.approx(0.0)
+
+
+def test_duplicate_gt_no_gt():
+    pred = {"x_center": 0.5, "y_center": 0.5, "width": 0.1, "height": 0.1}
+    m = evaluate([pred], [])
+    assert m["duplicate_gt_count"] == 0
+    assert m["duplicate_gt_rate"] == pytest.approx(0.0)
