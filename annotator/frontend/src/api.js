@@ -22,3 +22,12 @@ export const fetchDirs = () =>
 
 export const fetchStatus = (dir) =>
   api.get('/status', { params: { dir } }).then(r => r.data.images)
+
+export const fetchMaskingFonts = () =>
+  api.get('/masking/fonts').then(r => r.data.fonts)
+
+export const fetchMaskingStatus = (dir) =>
+  api.get('/masking/status', { params: { dir } }).then(r => r.data.images)
+
+export const applyMasking = (filename, dir, bboxes, fontName = null) =>
+  api.post('/masking/apply', { filename, dir, bboxes, font_name: fontName }).then(r => r.data)

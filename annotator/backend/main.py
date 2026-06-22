@@ -2,7 +2,7 @@ from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 from pathlib import Path
 
-from annotator.backend.routes import images, annotations, infer, status
+from annotator.backend.routes import images, annotations, infer, status, masking
 
 app = FastAPI(title="Annotation Tool")
 
@@ -10,6 +10,7 @@ app.include_router(images.router, prefix="/api")
 app.include_router(annotations.router, prefix="/api")
 app.include_router(infer.router, prefix="/api")
 app.include_router(status.router, prefix="/api")
+app.include_router(masking.router, prefix="/api")
 
 @app.get("/api/health")
 def health():

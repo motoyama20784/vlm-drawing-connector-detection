@@ -1,5 +1,7 @@
 import { useState, useRef, useCallback, useEffect } from 'react'
 import GalleryPage from './components/GalleryPage.jsx'
+import MaskingGalleryPage from './components/MaskingGalleryPage.jsx'
+import MaskingEditor from './components/MaskingEditor.jsx'
 import AnnotationCanvas from './components/AnnotationCanvas.jsx'
 import BboxList from './components/BboxList.jsx'
 import { fetchImageUrl, fetchAnnotation, saveAnnotation, inferBbox } from './api.js'
@@ -17,6 +19,8 @@ export default function App() {
   const [selectedId, setSelectedId] = useState(null)
   const [completed, setCompleted] = useState(false)
   const [inferring, setInferring] = useState(null)
+  const [maskingSelected, setMaskingSelected] = useState('')
+  const [maskingImageDir, setMaskingImageDir] = useState('samples')
   const [saving, setSaving] = useState(false)
   const [saveStatus, setSaveStatus] = useState('')
   const [sidebarWidth, setSidebarWidth] = useState(260)
@@ -173,8 +177,39 @@ export default function App() {
     savedSnapshot.current = snapshot(bboxes, next)
   }, [selected, bboxes, completed])
 
+  const openMaskingEditor = useCallback((filename, dir) => {
+    setMaskingSelected(filename)
+    setMaskingImageDir(dir)
+    setPage('masking_editor')
+  }, [])
+
   if (page === 'gallery') {
-    return <GalleryPage key={galleryKey} onSelectImage={openEditor} />
+    return (
+      <GalleryPage
+        key={galleryKey}
+        onSelectImage={openEditor}
+        onOpenMasking={() => setPage('masking_gallery')}
+      />
+    )
+  }
+
+  if (page === 'masking_gallery') {
+    return (
+      <MaskingGalleryPage
+        onSelectImage={openMaskingEditor}
+        onBack={() => setPage('gallery')}
+      />
+    )
+  }
+
+  if (page === 'masking_editor') {
+    return (
+      <MaskingEditor
+        filename={maskingSelected}
+        imageDir={maskingImageDir}
+        onBack={() => setPage('masking_gallery')}
+      />
+    )
   }
 
   const canUndo = bboxHistory.current.length > 0

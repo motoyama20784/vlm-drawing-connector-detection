@@ -10,7 +10,9 @@ RUN npm run build
 FROM python:3.11-slim
 WORKDIR /app
 COPY docker/annotator/requirements.txt ./
-RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install --no-cache-dir -r requirements.txt && \
+    apt-get update && apt-get install -y --no-install-recommends fonts-dejavu-core && \
+    rm -rf /var/lib/apt/lists/*
 COPY annotator/ ./annotator/
 COPY --from=frontend-builder /frontend/dist/ ./annotator/backend/static/
 ENV PYTHONPATH=/app

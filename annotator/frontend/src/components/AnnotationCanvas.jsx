@@ -29,7 +29,7 @@ function zoomReducer(state, action) {
   }
 }
 
-export default function AnnotationCanvas({ imageSrc, bboxes, selectedId, onBboxAdd, onSelect }) {
+export default function AnnotationCanvas({ imageSrc, bboxes, selectedId, onBboxAdd, onSelect, bboxColor = COLOR_DEFAULT }) {
   const wrapperRef = useRef(null)
   const canvasRef = useRef(null)
   const imageRef = useRef(null)
@@ -54,7 +54,7 @@ export default function AnnotationCanvas({ imageSrc, bboxes, selectedId, onBboxA
       const y = (bbox.y_center - bbox.height / 2) * canvas.height
       const w = bbox.width * canvas.width
       const h = bbox.height * canvas.height
-      const color = isSelected ? COLOR_SELECTED : COLOR_DEFAULT
+      const color = isSelected ? COLOR_SELECTED : bboxColor
 
       if (isSelected) {
         ctx.fillStyle = 'rgba(255,152,0,0.15)'
@@ -158,8 +158,9 @@ export default function AnnotationCanvas({ imageSrc, bboxes, selectedId, onBboxA
     e.preventDefault()
     const pos = getPos(e)
     const hit = hitTest(pos)
-    if (hit) { onSelect(hit); return }
-    onSelect(null)
+    if (hit) { onSelect?.(hit); return }
+    onSelect?.(null)
+    if (!onBboxAdd) return  // read-only: no drawing
     drawingRef.current = true
     startPosRef.current = pos
     currentPosRef.current = pos
@@ -181,7 +182,7 @@ export default function AnnotationCanvas({ imageSrc, bboxes, selectedId, onBboxA
     const x2 = Math.max(startPosRef.current.x, endPos.x)
     const y2 = Math.max(startPosRef.current.y, endPos.y)
     if (x2 - x1 > 5 && y2 - y1 > 5) {
-      onBboxAdd({
+      onBboxAdd?.({
         x_center: (x1 + x2) / 2 / canvas.width,
         y_center: (y1 + y2) / 2 / canvas.height,
         width: (x2 - x1) / canvas.width,
@@ -213,7 +214,7 @@ export default function AnnotationCanvas({ imageSrc, bboxes, selectedId, onBboxA
           position: 'absolute',
           transformOrigin: '0 0',
           transform: `translate(${zoom.offset.x}px, ${zoom.offset.y}px) scale(${zoom.scale})`,
-          cursor: 'crosshair',
+          cursor: onBboxAdd ? 'crosshair' : 'default',
           display: 'block',
           imageRendering: zoom.scale > 2 ? 'pixelated' : 'auto',
         }}
