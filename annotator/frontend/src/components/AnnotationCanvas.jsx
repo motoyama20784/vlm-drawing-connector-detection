@@ -1,4 +1,4 @@
-import { useRef, useEffect, useReducer, useCallback } from 'react'
+import { useRef, useEffect, useReducer, useCallback, useState } from 'react'
 
 const COLOR_DEFAULT = '#00e676'
 const COLOR_SELECTED = '#ff9800'
@@ -6,7 +6,7 @@ const ZOOM_MIN = 0.05
 const ZOOM_MAX = 10
 const ZOOM_FACTOR = 1.15
 
-function zoomReducer(state, action) {
+export function zoomReducer(state, action) {
   switch (action.type) {
     case 'fit': {
       const { cw, ch, ww, wh } = action
@@ -24,21 +24,51 @@ function zoomReducer(state, action) {
         },
       }
     }
+    case 'pan': {
+      return { scale: state.scale, offset: { x: state.offset.x + action.dx, y: state.offset.y + action.dy } }
+    }
     default:
       return state
   }
 }
 
-export default function AnnotationCanvas({ imageSrc, bboxes, selectedId, onBboxAdd, onSelect, bboxColor = COLOR_DEFAULT }) {
+// externalZoom / onZoomChange を渡すと両キャンバスで zoom を共有できる。
+// 省略時は内部 state で管理（既存の動作）。
+export default function AnnotationCanvas({
+  imageSrc, bboxes, selectedId, onBboxAdd, onSelect,
+  bboxColor = COLOR_DEFAULT,
+  externalZoom = null,    // 共有 zoom state（親が管理）
+  onZoomChange = null,    // zoom が変わったときに新 state を通知するコールバック
+}) {
   const wrapperRef = useRef(null)
   const canvasRef = useRef(null)
   const imageRef = useRef(null)
   const drawingRef = useRef(false)
   const startPosRef = useRef(null)
   const currentPosRef = useRef(null)
-  const [zoom, dispatchZoom] = useReducer(zoomReducer, { scale: 1, offset: { x: 0, y: 0 } })
+  const panningRef = useRef(false)
+  const panStartRef = useRef(null)
+  const [panning, setPanning] = useState(false)
+
+  // 内部 zoom（externalZoom が渡されない場合に使用）
+  const [internalZoom, dispatchInternal] = useReducer(zoomReducer, { scale: 1, offset: { x: 0, y: 0 } })
+  const zoom = externalZoom ?? internalZoom
+
+  // zoomDispatch: 変更を常に最新 zoom から計算し、親か内部に通知
   const zoomRef = useRef(zoom)
   useEffect(() => { zoomRef.current = zoom }, [zoom])
+
+  const zoomDispatch = useCallback((action) => {
+    if (onZoomChange) {
+      onZoomChange(zoomReducer(zoomRef.current, action))
+    } else {
+      dispatchInternal(action)
+    }
+  }, [onZoomChange])
+
+  // externalZoom が既にセットされている場合は画像ロード時の自動 fit をスキップ
+  const externalZoomRef = useRef(externalZoom)
+  useEffect(() => { externalZoomRef.current = externalZoom }, [externalZoom])
 
   // --- draw ---
   const redraw = useCallback(() => {
@@ -80,9 +110,8 @@ export default function AnnotationCanvas({ imageSrc, bboxes, selectedId, onBboxA
       )
       ctx.setLineDash([])
     }
-  }, [bboxes, selectedId])
+  }, [bboxes, selectedId, bboxColor])
 
-  // Redraw when bboxes/selection changes
   useEffect(() => { redraw() }, [redraw])
 
   // --- image load → fit ---
@@ -90,8 +119,8 @@ export default function AnnotationCanvas({ imageSrc, bboxes, selectedId, onBboxA
     const canvas = canvasRef.current
     const wrapper = wrapperRef.current
     if (!canvas || !wrapper || !canvas.width) return
-    dispatchZoom({ type: 'fit', cw: canvas.width, ch: canvas.height, ww: wrapper.clientWidth, wh: wrapper.clientHeight })
-  }, [])
+    zoomDispatch({ type: 'fit', cw: canvas.width, ch: canvas.height, ww: wrapper.clientWidth, wh: wrapper.clientHeight })
+  }, [zoomDispatch])
 
   useEffect(() => {
     if (!imageSrc) return
@@ -102,25 +131,26 @@ export default function AnnotationCanvas({ imageSrc, bboxes, selectedId, onBboxA
       if (!canvas) return
       canvas.width = img.naturalWidth
       canvas.height = img.naturalHeight
-      fitToWrapper()
+      // 共有 zoom がすでにセットされていれば自動 fit しない（追従モード）
+      if (!externalZoomRef.current) fitToWrapper()
       redraw()
     }
     img.src = imageSrc
-  }, [imageSrc])
+  }, [imageSrc, fitToWrapper])
 
-  // --- wheel zoom (passive: false to allow preventDefault) ---
+  // --- wheel zoom ---
   const handleWheel = useCallback((e) => {
     e.preventDefault()
     const wrapper = wrapperRef.current
     if (!wrapper) return
     const rect = wrapper.getBoundingClientRect()
-    dispatchZoom({
+    zoomDispatch({
       type: 'wheel',
       mx: e.clientX - rect.left,
       my: e.clientY - rect.top,
       factor: e.deltaY < 0 ? ZOOM_FACTOR : 1 / ZOOM_FACTOR,
     })
-  }, [])
+  }, [zoomDispatch])
 
   useEffect(() => {
     const wrapper = wrapperRef.current
@@ -130,7 +160,6 @@ export default function AnnotationCanvas({ imageSrc, bboxes, selectedId, onBboxA
   }, [handleWheel])
 
   // --- canvas coordinate from mouse event ---
-  // getBoundingClientRect returns the *scaled* rect so division corrects it
   const getPos = (e) => {
     const canvas = canvasRef.current
     const rect = canvas.getBoundingClientRect()
@@ -153,14 +182,27 @@ export default function AnnotationCanvas({ imageSrc, bboxes, selectedId, onBboxA
     return null
   }, [bboxes])
 
+  const stopPan = () => {
+    panningRef.current = false
+    panStartRef.current = null
+    setPanning(false)
+  }
+
   const handleMouseDown = (e) => {
+    if (e.button === 2) {
+      e.preventDefault()
+      panningRef.current = true
+      panStartRef.current = { x: e.clientX, y: e.clientY }
+      setPanning(true)
+      return
+    }
     if (e.button !== 0) return
     e.preventDefault()
     const pos = getPos(e)
     const hit = hitTest(pos)
     if (hit) { onSelect?.(hit); return }
     onSelect?.(null)
-    if (!onBboxAdd) return  // read-only: no drawing
+    if (!onBboxAdd) return
     drawingRef.current = true
     startPosRef.current = pos
     currentPosRef.current = pos
@@ -168,12 +210,23 @@ export default function AnnotationCanvas({ imageSrc, bboxes, selectedId, onBboxA
   }
 
   const handleMouseMove = (e) => {
+    if (panningRef.current && panStartRef.current) {
+      const dx = e.clientX - panStartRef.current.x
+      const dy = e.clientY - panStartRef.current.y
+      panStartRef.current = { x: e.clientX, y: e.clientY }
+      zoomDispatch({ type: 'pan', dx, dy })
+      return
+    }
     if (!drawingRef.current) return
     currentPosRef.current = getPos(e)
     redraw()
   }
 
   const handleMouseUp = (e) => {
+    if (e.button === 2) {
+      stopPan()
+      return
+    }
     if (!drawingRef.current || !startPosRef.current) return
     const endPos = getPos(e)
     const canvas = canvasRef.current
@@ -214,14 +267,15 @@ export default function AnnotationCanvas({ imageSrc, bboxes, selectedId, onBboxA
           position: 'absolute',
           transformOrigin: '0 0',
           transform: `translate(${zoom.offset.x}px, ${zoom.offset.y}px) scale(${zoom.scale})`,
-          cursor: onBboxAdd ? 'crosshair' : 'default',
+          cursor: panning ? 'grabbing' : (onBboxAdd ? 'crosshair' : 'default'),
           display: 'block',
           imageRendering: zoom.scale > 2 ? 'pixelated' : 'auto',
         }}
         onMouseDown={handleMouseDown}
         onMouseMove={handleMouseMove}
         onMouseUp={handleMouseUp}
-        onMouseLeave={handleMouseUp}
+        onMouseLeave={(e) => { stopPan(); handleMouseUp(e) }}
+        onContextMenu={(e) => e.preventDefault()}
       />
       <div style={{
         position: 'absolute', bottom: 8, right: 8,
@@ -232,7 +286,7 @@ export default function AnnotationCanvas({ imageSrc, bboxes, selectedId, onBboxA
         <span>{Math.round(zoom.scale * 100)}%</span>
         <button
           onClick={fitToWrapper}
-          title="ズームリセット (ダブルクリックでも可)"
+          title="ズームリセット"
           style={{
             background: 'none', border: '1px solid #2a4060', borderRadius: '4px',
             color: '#a0c0e0', cursor: 'pointer', fontSize: '11px', padding: '1px 6px',
