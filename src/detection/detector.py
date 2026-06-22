@@ -2,6 +2,7 @@ import base64
 import json
 import os
 import sys
+import threading
 import time
 
 import requests
@@ -83,7 +84,7 @@ def print_gpu_usage() -> None:
         )
 
 
-def detect(image_path: str, prompt: str, model: str, params: dict) -> str:
+def detect(image_path: str, prompt: str, model: str, params: dict) -> tuple[str, dict]:
     with open(image_path, "rb") as f:
         image_b64 = base64.b64encode(f.read()).decode()
 
@@ -110,26 +111,65 @@ def detect(image_path: str, prompt: str, model: str, params: dict) -> str:
     if "think" in params:
         payload["think"] = params["think"]
 
-    print(f"[inference] リクエスト送信 → モデルロード/thinking待ち...", flush=True)
-    full_response = _stream_generate(payload, thinking_timeout=thinking_timeout, request_timeout=request_timeout)
+    # 推論前のベースライン VRAM（≒モデル重み）を取得
+    weights_gb = 0.0
+    baseline = get_gpu_usage()
+    for m in baseline.get("loaded_models", []):
+        weights_gb = max(weights_gb, m["vram_gb"])
 
-    if full_response is None:
+    peak_vram = [0.0]
+    stop_event = threading.Event()
+
+    def _monitor_vram():
+        while not stop_event.is_set():
+            usage = get_gpu_usage()
+            for m in usage.get("loaded_models", []):
+                if peak_vram[0] < m["vram_gb"]:
+                    peak_vram[0] = m["vram_gb"]
+            stop_event.wait(1.0)
+
+    monitor_thread = threading.Thread(target=_monitor_vram, daemon=True)
+    monitor_thread.start()
+
+    print(f"[inference] リクエスト送信 → モデルロード/thinking待ち...", flush=True)
+    result = _stream_generate(payload, thinking_timeout=thinking_timeout, request_timeout=request_timeout)
+
+    thinking_fallback = False
+    if result is None:
+        thinking_fallback = True
         print(f"[thinking fallback] think: false でリトライ", flush=True)
-        full_response = _stream_generate(payload, thinking_timeout=None, request_timeout=request_timeout)
+        payload["think"] = False
+        result = _stream_generate(payload, thinking_timeout=None, request_timeout=request_timeout)
+
+    stop_event.set()
+    monitor_thread.join()
+
+    full_response, token_stats = result
+    total_vram_gb = peak_vram[0]
+    kv_cache_gb = round(max(total_vram_gb - weights_gb, 0.0), 2)
+
+    token_stats["thinking_fallback"] = thinking_fallback
+    token_stats["peak_vram_gb"] = total_vram_gb
+    token_stats["weights_vram_gb"] = weights_gb
+    token_stats["kv_cache_vram_gb"] = kv_cache_gb
 
     print_gpu_usage()
-    return full_response
+    return full_response, token_stats
 
 
-def _stream_generate(payload: dict, thinking_timeout: int | None, request_timeout: int = 120) -> str | None:
-    """ストリーミングで生成し全レスポンスを返す。
+def _stream_generate(
+    payload: dict,
+    thinking_timeout: int | None,
+    request_timeout: int = 120,
+) -> tuple[str, dict] | None:
+    """ストリーミングで生成し (レスポンス文字列, トークン統計) を返す。
     thinking_timeout 秒を超えた場合は None を返す（fallback 用）。
-    request_timeout はソケットの read timeout。
     """
     read_timeout = thinking_timeout if thinking_timeout else request_timeout
     full_response = ""
     think_chunks = 0
     resp_chunks = 0
+    token_stats = {"eval_count": 0, "prompt_eval_count": 0}
     start_time = time.time()
 
     try:
@@ -157,10 +197,12 @@ def _stream_generate(payload: dict, thinking_timeout: int | None, request_timeou
                     elapsed = time.time() - start_time
                     pbar.set_postfix(think=think_chunks, resp=resp_chunks, elapsed=f"{elapsed:.0f}s", refresh=True)
                     if data.get("done", False):
+                        token_stats["eval_count"] = data.get("eval_count", 0)
+                        token_stats["prompt_eval_count"] = data.get("prompt_eval_count", 0)
                         break
     except requests.exceptions.ReadTimeout:
         elapsed = time.time() - start_time
         print(f"\n[thinking timeout] {thinking_timeout}s 超過 (elapsed={elapsed:.0f}s) → キャンセル", flush=True)
         return None
 
-    return full_response
+    return full_response, token_stats

@@ -61,7 +61,7 @@ def run_experiment(config_path: str) -> None:
             mlflow.log_param("model_parameter_size", model_info.get("parameter_size", "unknown"))
             mlflow.log_param("model_quantization", model_info.get("quantization_level", "unknown"))
             if model_info.get("quantization_level") in ("F16", "BF16"):
-                config["params"].setdefault("num_ctx", 8192)
+                config["params"].setdefault("num_ctx", 32768)
                 print(f"[num_ctx] F16/BF16モデルのため num_ctx={config['params']['num_ctx']} を適用")
 
         gpu_usage = get_gpu_usage()
@@ -92,7 +92,7 @@ def run_experiment(config_path: str) -> None:
         }
 
         for image_path in image_paths:
-            raw_response = detect(
+            raw_response, token_stats = detect(
                 str(image_path),
                 prompt_text,
                 config["model"],
@@ -122,6 +122,12 @@ def run_experiment(config_path: str) -> None:
             vis_path = outputs_dir / f"{timestamp}_{stem}_vis.jpg"
             draw_bboxes(str(image_path), pred_boxes, str(vis_path))
 
+            mlflow.log_metric(f"eval_count_{stem}", token_stats["eval_count"])
+            mlflow.log_metric(f"prompt_eval_count_{stem}", token_stats["prompt_eval_count"])
+            mlflow.log_metric(f"peak_vram_gb_{stem}", token_stats["peak_vram_gb"])
+            mlflow.log_metric(f"weights_vram_gb_{stem}", token_stats["weights_vram_gb"])
+            mlflow.log_metric(f"kv_cache_vram_gb_{stem}", token_stats["kv_cache_vram_gb"])
+            mlflow.log_param(f"thinking_fallback_{stem}", token_stats["thinking_fallback"])
             mlflow.log_metric(f"precision_{stem}", metrics["precision"])
             mlflow.log_metric(f"recall_{stem}", metrics["recall"])
             mlflow.log_metric(f"f1_{stem}", metrics["f1"])
