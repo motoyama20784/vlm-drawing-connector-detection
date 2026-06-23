@@ -31,3 +31,11 @@ export const fetchMaskingStatus = (dir) =>
 
 export const applyMasking = (filename, dir, bboxes, fontName = null) =>
   api.post('/masking/apply', { filename, dir, bboxes, font_name: fontName }).then(r => r.data)
+
+export const fetchResultsList = (dir) =>
+  api.get('/results/list', { params: { dir } }).then(r => r.data)
+
+export const fetchResultsEvaluate = (dir, image, resultFile = null) =>
+  api.get('/results/evaluate', {
+    params: { dir, image, ...(resultFile ? { result_file: resultFile } : {}) },
+  }).then(r => r.data)
