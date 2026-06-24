@@ -1,18 +1,11 @@
 from fastapi import APIRouter
 from pathlib import Path
 import json
-import re
-
 from annotator.backend.config import get_config
 
 router = APIRouter()
 
 IMAGE_EXTS = {'.png', '.jpg', '.jpeg', '.bmp', '.tiff'}
-_TIMESTAMP_RE = re.compile(r'^\d{8}_\d{6}_')
-
-
-def _stem_from_result_name(name: str) -> str:
-    return _TIMESTAMP_RE.sub('', name)
 
 
 def _compute_iou(b1: dict, b2: dict) -> float:
@@ -91,14 +84,19 @@ def _match(pred_boxes: list, gt_boxes: list, iou_threshold: float = 0.3, near_io
 
 
 def _result_files_by_stem(outputs_dir: Path) -> dict:
+    """各 run サブディレクトリの json/ を走査して {stem: ["run_dir/json/stem.json", ...]} を返す。"""
     result = {}
     if not outputs_dir.exists():
         return result
-    for f in outputs_dir.glob("*.json"):
-        if not _TIMESTAMP_RE.match(f.stem):
+    for run_dir in sorted(outputs_dir.iterdir(), key=lambda p: p.stat().st_mtime):
+        if not run_dir.is_dir():
             continue
-        stem = _stem_from_result_name(f.stem)
-        result.setdefault(stem, []).append(f.name)
+        json_dir = run_dir / "json"
+        if not json_dir.exists():
+            continue
+        for f in sorted(json_dir.glob("*.json"), key=lambda p: p.stat().st_mtime):
+            relative = f"{run_dir.name}/json/{f.name}"
+            result.setdefault(f.stem, []).append(relative)
     return result
 
 
@@ -124,9 +122,8 @@ def list_results(dir: str = "samples"):
 
         latest_metrics = None
         if result_files and has_gt:
-            latest = result_files[-1]
             try:
-                pred_boxes = json.loads((outputs_dir / latest).read_text()).get("connectors", [])
+                pred_boxes = json.loads((outputs_dir / result_files[-1]).read_text()).get("connectors", [])
                 gt_boxes = json.loads((gt_dir / f"{stem}.json").read_text()).get("connectors", [])
                 latest_metrics = _match(pred_boxes, gt_boxes)["metrics"]
             except Exception:

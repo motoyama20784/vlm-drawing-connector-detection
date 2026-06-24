@@ -1,7 +1,6 @@
 import argparse
 import json
 import os
-from datetime import datetime
 from pathlib import Path
 
 import mlflow
@@ -31,15 +30,26 @@ def run_experiment(config_path: str) -> None:
     with open(config["prompt"]["file"]) as f:
         prompt_text = f.read()
 
-    outputs_dir = Path(config["data"].get("outputs_dir", "data/outputs"))
-    outputs_dir.mkdir(parents=True, exist_ok=True)
+    outputs_base = Path(config["data"].get("outputs_dir", "data/outputs"))
 
     mlflow.set_tracking_uri(MLFLOW_TRACKING_URI)
     mlflow.set_experiment("connector-detection")
 
     print_model_info(config["model"])
 
-    with mlflow.start_run():
+    with mlflow.start_run() as run:
+        run_id = run.info.run_id
+        run_name = run.info.run_name or run_id[:8]
+        outputs_dir = outputs_base / f"{run_name}_{run_id[:8]}"
+        json_dir = outputs_dir / "json"
+        raw_dir  = outputs_dir / "raw"
+        vis_dir  = outputs_dir / "vis"
+        for d in (json_dir, raw_dir, vis_dir):
+            d.mkdir(parents=True, exist_ok=True)
+
+        mlflow.set_tag("output_dir", str(outputs_dir))
+        mlflow.log_artifact(config_path, "config")
+
         mlflow.log_param("model", config["model"])
         mlflow.log_param("prompt_file", config["prompt"]["file"])
         mlflow.log_param("prompt_type", config["prompt"]["type"])
@@ -71,6 +81,16 @@ def run_experiment(config_path: str) -> None:
             mlflow.log_param("gpu_processor", first.get("processor", "unknown"))
 
         mlflow.log_text(prompt_text, "prompt.txt")
+
+        run_info = {
+            "run_id": run_id,
+            "run_name": run_name,
+            "mlflow_url": f"{MLFLOW_TRACKING_URI}/#/experiments/1/runs/{run_id}",
+            "output_dir": str(outputs_dir),
+        }
+        (outputs_dir / "run_info.json").write_text(
+            json.dumps(run_info, indent=2, ensure_ascii=False), encoding="utf-8"
+        )
 
         samples_dir = config["data"]["samples_dir"]
         gt_dir = config["data"]["ground_truth_dir"]
@@ -106,21 +126,16 @@ def run_experiment(config_path: str) -> None:
             )
 
             stem = image_path.stem
-            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
 
-            # 生レスポンス保存（パース失敗調査用）
-            raw_path = outputs_dir / f"{timestamp}_{stem}_raw.txt"
+            raw_path  = raw_dir  / f"{stem}.txt"
+            json_path = json_dir / f"{stem}.json"
+            vis_path  = vis_dir  / f"{stem}.jpg"
+
             raw_path.write_text(raw_response, encoding="utf-8")
-
-            # JSON出力
-            json_path = outputs_dir / f"{timestamp}_{stem}.json"
             json_path.write_text(
                 json.dumps({"connectors": pred_boxes}, indent=2, ensure_ascii=False),
                 encoding="utf-8",
             )
-
-            # bbox描画済み画像の出力
-            vis_path = outputs_dir / f"{timestamp}_{stem}_vis.jpg"
             draw_bboxes(str(image_path), pred_boxes, str(vis_path))
 
             mlflow.log_metric(f"eval_count_{stem}", token_stats["eval_count"])
@@ -139,9 +154,9 @@ def run_experiment(config_path: str) -> None:
             mlflow.log_metric(f"ghost_fp_rate_{stem}", metrics["ghost_fp_rate"])
             mlflow.log_metric(f"duplicate_gt_rate_{stem}", metrics["duplicate_gt_rate"])
             mlflow.log_metric(f"merged_pred_rate_{stem}", metrics["merged_pred_rate"])
-            mlflow.log_text(raw_response, f"responses/{stem}.txt")
-            mlflow.log_artifact(str(json_path), f"detections")
-            mlflow.log_artifact(str(vis_path), f"visualizations")
+            mlflow.log_text(raw_response, f"raw/{stem}.txt")
+            mlflow.log_artifact(str(json_path), "json")
+            mlflow.log_artifact(str(vis_path), "vis")
 
             all_metrics.append(metrics)
 
