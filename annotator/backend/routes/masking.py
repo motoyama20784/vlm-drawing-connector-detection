@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import random
 import string
 from pathlib import Path
@@ -198,6 +199,12 @@ class MaskRequest(BaseModel):
     font_name: Optional[str] = None
 
 
+# ---------- Helpers ----------
+
+def _bbox_json_path(masking_dir: Path, dir_name: str, filename: str) -> Path:
+    return masking_dir / dir_name / (Path(filename).stem + ".json")
+
+
 # ---------- Endpoints ----------
 
 @router.get("/masking/fonts")
@@ -205,10 +212,20 @@ def list_fonts():
     return {"fonts": find_fonts()}
 
 
+@router.get("/masking/bboxes")
+def get_masking_bboxes(filename: str, dir: str = "samples", config: Config = Depends(get_config)):
+    path = _bbox_json_path(config.masking_dir, dir, filename)
+    if not path.exists():
+        return {"bboxes": []}
+    with open(path, encoding="utf-8") as f:
+        data = json.load(f)
+    return {"bboxes": data.get("bboxes", [])}
+
+
 @router.get("/masking/status")
 def masking_status(dir: str = "samples", config: Config = Depends(get_config)):
-    src_dir = config.inputs_dir / dir
-    masked_dir = config.inputs_dir / f"{dir}_masked"
+    src_dir = config.original_dir / dir
+    masked_dir = config.masked_dir / dir
     if not src_dir.exists():
         return {"images": []}
     images = []
@@ -224,12 +241,11 @@ def masking_status(dir: str = "samples", config: Config = Depends(get_config)):
 
 @router.post("/masking/apply")
 def apply_masking(req: MaskRequest, config: Config = Depends(get_config)):
-    src_path = config.inputs_dir / req.dir / req.filename
+    src_path = config.original_dir / req.dir / req.filename
     if not src_path.exists():
         raise HTTPException(status_code=404, detail="Image not found")
 
-    out_dir_name = f"{req.dir}_masked"
-    out_dir = config.inputs_dir / out_dir_name
+    out_dir = config.masked_dir / req.dir
     out_dir.mkdir(parents=True, exist_ok=True)
     out_path = out_dir / req.filename
 
@@ -261,8 +277,18 @@ def apply_masking(req: MaskRequest, config: Config = Depends(get_config)):
     else:
         img.save(str(out_path))
 
+    bbox_path = _bbox_json_path(config.masking_dir, req.dir, req.filename)
+    bbox_path.parent.mkdir(parents=True, exist_ok=True)
+    bbox_path.write_text(
+        json.dumps(
+            {"dir": req.dir, "filename": req.filename, "bboxes": [b.model_dump() for b in req.bboxes]},
+            indent=2,
+        ),
+        encoding="utf-8",
+    )
+
     return {
-        "output_dir": out_dir_name,
+        "output_dir": req.dir,
         "output_filename": req.filename,
-        "message": f"Saved to inputs/{out_dir_name}/{req.filename}",
+        "message": f"Saved to inputs/masking/{req.dir}/{req.filename}",
     }

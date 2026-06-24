@@ -79,9 +79,7 @@ export default function ResultsViewer({ filename, dir, onBack }) {
 
   const fmt = v => Number.isInteger(v) ? String(v) : v.toFixed(3)
 
-  // Use original (non-masked) dir for image display
-  const imageDir = dir.endsWith('_masked') ? dir.replace(/_masked$/, '') : dir
-  const imageSrc = filename ? fetchImageUrl(filename, imageDir) : ''
+  const imageSrc = filename ? fetchImageUrl(filename, dir) : ''
 
   return (
     // flex:1 + min-height:0 ensures this fills the parent flex column without height:100% resolution issues

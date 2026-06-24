@@ -9,10 +9,10 @@ IMAGE_EXTENSIONS = {".png", ".jpg", ".jpeg", ".bmp", ".tiff"}
 
 @router.get("/dirs")
 def list_dirs(config: Config = Depends(get_config)):
-    if not config.inputs_dir.exists():
+    if not config.original_dir.exists():
         return {"dirs": []}
     dirs = []
-    for d in sorted(config.inputs_dir.iterdir()):
+    for d in sorted(config.original_dir.iterdir()):
         if not d.is_dir():
             continue
         if any(f.suffix.lower() in IMAGE_EXTENSIONS for f in d.iterdir() if f.is_file()):
@@ -22,7 +22,7 @@ def list_dirs(config: Config = Depends(get_config)):
 
 @router.get("/status")
 def get_status(dir: str = "samples", config: Config = Depends(get_config)):
-    target_dir = config.inputs_dir / dir
+    target_dir = config.original_dir / dir
     gt_dir = config.data_dir / "ground_truth"
 
     if not target_dir.exists():

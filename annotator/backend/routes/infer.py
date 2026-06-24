@@ -54,7 +54,7 @@ def _parse_vlm_response(text: str) -> dict:
 
 @router.post("/infer")
 def infer_bbox(req: InferRequest, config: Config = Depends(get_config)):
-    image_path = config.inputs_dir / req.dir / req.image
+    image_path = config.original_dir / req.dir / req.image
     if not image_path.exists():
         raise HTTPException(status_code=404, detail="Image not found")
 

@@ -47,9 +47,8 @@ export default function ResultsGalleryPage({ onSelectImage }) {
 
   useEffect(() => {
     fetchDirs().then(d => {
-      const srcDirs = d.filter(dir => !dir.endsWith('_masked'))
-      setDirs(srcDirs)
-      if (srcDirs.length > 0) setSelectedDir(srcDirs[0])
+      setDirs(d)
+      if (d.length > 0) setSelectedDir(d[0])
     }).catch(console.error)
   }, [])
 

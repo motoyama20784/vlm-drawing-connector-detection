@@ -26,12 +26,8 @@ export default function MaskingGalleryPage({ onSelectImage }) {
 
   useEffect(() => {
     fetchDirs().then(d => {
-      // Exclude _masked output directories from the source selector
-      const srcDirs = d.filter(dir => !dir.endsWith('_masked'))
-      setDirs(srcDirs)
-      if (srcDirs.length > 0) {
-        setSelectedDir(srcDirs.includes('inputs') ? 'inputs' : srcDirs[0])
-      }
+      setDirs(d)
+      if (d.length > 0) setSelectedDir(d[0])
     }).catch(console.error)
   }, [])
 
@@ -90,7 +86,7 @@ export default function MaskingGalleryPage({ onSelectImage }) {
         )}
         {selectedDir && (
           <span style={{ fontSize: '12px', color: '#5a4a8a', marginLeft: 'auto' }}>
-            保存先: {selectedDir}_masked/
+            保存先: inputs/masking/{selectedDir}/
           </span>
         )}
       </div>

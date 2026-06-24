@@ -5,8 +5,8 @@ const api = axios.create({ baseURL: '/api' })
 export const fetchImages = (dir = 'samples') =>
   api.get('/images', { params: { dir } }).then(r => r.data.images)
 
-export const fetchImageUrl = (filename, dir = 'samples') =>
-  `/api/images/${encodeURIComponent(filename)}?dir=${encodeURIComponent(dir)}`
+export const fetchImageUrl = (filename, dir = 'samples', area = 'original') =>
+  `/api/images/${encodeURIComponent(filename)}?dir=${encodeURIComponent(dir)}&area=${encodeURIComponent(area)}`
 
 export const fetchAnnotation = (filename) =>
   api.get(`/annotations/${encodeURIComponent(filename)}`).then(r => r.data)
@@ -28,6 +28,9 @@ export const fetchMaskingFonts = () =>
 
 export const fetchMaskingStatus = (dir) =>
   api.get('/masking/status', { params: { dir } }).then(r => r.data.images)
+
+export const fetchMaskingBboxes = (filename, dir) =>
+  api.get('/masking/bboxes', { params: { filename, dir } }).then(r => r.data.bboxes)
 
 export const applyMasking = (filename, dir, bboxes, fontName = null) =>
   api.post('/masking/apply', { filename, dir, bboxes, font_name: fontName }).then(r => r.data)

@@ -105,7 +105,7 @@ def _result_files_by_stem(outputs_dir: Path) -> dict:
 @router.get("/results/list")
 def list_results(dir: str = "samples"):
     cfg = get_config()
-    inputs_dir = cfg.inputs_dir / dir
+    inputs_dir = cfg.original_dir / dir
     gt_dir = cfg.data_dir / "ground_truth"
     outputs_dir = cfg.data_dir / "outputs"
 

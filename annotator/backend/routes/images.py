@@ -9,7 +9,7 @@ IMAGE_EXTENSIONS = {".png", ".jpg", ".jpeg", ".bmp", ".tiff"}
 
 @router.get("/images")
 def list_images(dir: str = "samples", config: Config = Depends(get_config)):
-    target = config.inputs_dir / dir
+    target = config.original_dir / dir
     if not target.exists():
         return {"images": []}
     images = [
@@ -20,8 +20,9 @@ def list_images(dir: str = "samples", config: Config = Depends(get_config)):
 
 
 @router.get("/images/{filename}")
-def get_image(filename: str, dir: str = "samples", config: Config = Depends(get_config)):
-    path = config.inputs_dir / dir / filename
+def get_image(filename: str, dir: str = "samples", area: str = "original", config: Config = Depends(get_config)):
+    base = config.masked_dir if area == "masking" else config.original_dir
+    path = base / dir / filename
     if not path.exists():
         raise HTTPException(status_code=404, detail="Image not found")
     return FileResponse(str(path))

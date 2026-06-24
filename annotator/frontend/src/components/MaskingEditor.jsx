@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import AnnotationCanvas from './AnnotationCanvas.jsx'
-import { fetchImageUrl, fetchMaskingFonts, fetchMaskingStatus, applyMasking } from '../api.js'
+import { fetchImageUrl, fetchMaskingFonts, fetchMaskingStatus, fetchMaskingBboxes, applyMasking } from '../api.js'
 
 // 両キャンバスで zoom を共有するための hook
 function useSharedZoom() {
@@ -32,12 +32,21 @@ export default function MaskingEditor({ filename, imageDir, onBack }) {
     }).catch(console.error)
   }, [])
 
+  // Load saved bboxes from previous session
+  useEffect(() => {
+    fetchMaskingBboxes(filename, imageDir).then(savedBboxes => {
+      if (savedBboxes.length > 0) {
+        setBboxes(savedBboxes.map(b => ({ id: crypto.randomUUID(), ...b })))
+      }
+    }).catch(() => {})
+  }, [filename, imageDir])
+
   // Load existing masked image if it already exists from a previous session
   useEffect(() => {
     fetchMaskingStatus(imageDir).then(images => {
       const entry = images.find(img => img.filename === filename)
       if (entry?.masked) {
-        setMaskedImageSrc(fetchImageUrl(filename, `${imageDir}_masked`) + '&t=0')
+        setMaskedImageSrc(fetchImageUrl(filename, imageDir, 'masking') + '&t=0')
       }
     }).catch(() => {})
   }, [filename, imageDir])
@@ -94,7 +103,7 @@ export default function MaskingEditor({ filename, imageDir, onBack }) {
       setApplyResult(result)
       setApplyStatus('success')
       // Cache-bust so the browser reloads the updated masked image
-      setMaskedImageSrc(fetchImageUrl(result.output_filename, result.output_dir) + `&t=${Date.now()}`)
+      setMaskedImageSrc(fetchImageUrl(result.output_filename, result.output_dir, 'masking') + `&t=${Date.now()}`)
     } catch (e) {
       console.error('Masking failed:', e)
       setApplyStatus('error')
@@ -366,7 +375,7 @@ export default function MaskingEditor({ filename, imageDir, onBack }) {
               fontSize: '11px', color: '#5a4a8a', lineHeight: 1.5,
             }}>
               <div>フォント: {fontName || '(デフォルト)'}</div>
-              <div>保存先: {imageDir}_masked/</div>
+              <div>保存先: inputs/masking/{imageDir}/</div>
             </div>
           )}
         </div>
