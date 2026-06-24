@@ -166,40 +166,44 @@ def run_experiment(config_path: str, resume_dir: str = None) -> None:
         if not resume_dir:
             mlflow.set_tag("output_dir", str(outputs_dir))
             mlflow.log_artifact(config_path, "config")
+            mlflow.log_param("image_mode", image_mode)
+            mlflow.log_param("samples_dir", config["data"]["samples_dir"])
+            mlflow.log_param("model", config["model"])
+            mlflow.log_param("prompt_file", config["prompt"]["file"])
+            mlflow.log_param("prompt_type", config["prompt"]["type"])
+            mlflow.log_param("temperature", config["params"]["temperature"])
+            mlflow.log_param("top_p", config["params"]["top_p"])
+            mlflow.log_param("top_k", config["params"]["top_k"])
+            mlflow.log_param("seed", config["params"].get("seed", 42))
+            if "num_ctx" in config["params"]:
+                mlflow.log_param("num_ctx", config["params"]["num_ctx"])
+            if "think" in config["params"]:
+                mlflow.log_param("think", config["params"]["think"])
+            if "thinking_timeout_seconds" in config["params"]:
+                mlflow.log_param("thinking_timeout_seconds", config["params"]["thinking_timeout_seconds"])
+            mlflow.log_param("iou_threshold", config["evaluation"]["iou_threshold"])
 
-        mlflow.log_param("image_mode", image_mode if not resume_dir else prior["image_mode"])
-        mlflow.log_param("samples_dir", config["data"]["samples_dir"])
-        mlflow.log_param("model", config["model"])
-        mlflow.log_param("prompt_file", config["prompt"]["file"])
-        mlflow.log_param("prompt_type", config["prompt"]["type"])
-        mlflow.log_param("temperature", config["params"]["temperature"])
-        mlflow.log_param("top_p", config["params"]["top_p"])
-        mlflow.log_param("top_k", config["params"]["top_k"])
-        mlflow.log_param("seed", config["params"].get("seed", 42))
-        if "num_ctx" in config["params"]:
-            mlflow.log_param("num_ctx", config["params"]["num_ctx"])
-        if "think" in config["params"]:
-            mlflow.log_param("think", config["params"]["think"])
-        if "thinking_timeout_seconds" in config["params"]:
-            mlflow.log_param("thinking_timeout_seconds", config["params"]["thinking_timeout_seconds"])
-        mlflow.log_param("iou_threshold", config["evaluation"]["iou_threshold"])
-
-        model_info = get_model_info(config["model"])
-        if "error" not in model_info:
-            mlflow.log_param("model_family", model_info.get("family", "unknown"))
-            mlflow.log_param("model_parameter_size", model_info.get("parameter_size", "unknown"))
-            mlflow.log_param("model_quantization", model_info.get("quantization_level", "unknown"))
-            if model_info.get("quantization_level") in ("F16", "BF16"):
+            model_info = get_model_info(config["model"])
+            if "error" not in model_info:
+                mlflow.log_param("model_family", model_info.get("family", "unknown"))
+                mlflow.log_param("model_parameter_size", model_info.get("parameter_size", "unknown"))
+                mlflow.log_param("model_quantization", model_info.get("quantization_level", "unknown"))
+                if model_info.get("quantization_level") in ("F16", "BF16"):
+                    config["params"].setdefault("num_ctx", 32768)
+                    print(f"[num_ctx] F16/BF16モデルのため num_ctx={config['params']['num_ctx']} を適用")
+        else:
+            model_info = get_model_info(config["model"])
+            if "error" not in model_info and model_info.get("quantization_level") in ("F16", "BF16"):
                 config["params"].setdefault("num_ctx", 32768)
                 print(f"[num_ctx] F16/BF16モデルのため num_ctx={config['params']['num_ctx']} を適用")
 
-        gpu_usage = get_gpu_usage()
-        if "error" not in gpu_usage and gpu_usage.get("loaded_models"):
-            first = gpu_usage["loaded_models"][0]
-            mlflow.log_param("gpu_vram_gb", first.get("vram_gb", "unknown"))
-            mlflow.log_param("gpu_processor", first.get("processor", "unknown"))
+            gpu_usage = get_gpu_usage()
+            if "error" not in gpu_usage and gpu_usage.get("loaded_models"):
+                first = gpu_usage["loaded_models"][0]
+                mlflow.log_param("gpu_vram_gb", first.get("vram_gb", "unknown"))
+                mlflow.log_param("gpu_processor", first.get("processor", "unknown"))
 
-        mlflow.log_text(prompt_text, "prompt.txt")
+            mlflow.log_text(prompt_text, "prompt.txt")
 
         if not resume_dir:
             _image_mode = image_mode
@@ -221,27 +225,28 @@ def run_experiment(config_path: str, resume_dir: str = None) -> None:
             + list(Path(samples_dir).glob("*.jpg"))
         )
 
-        mlflow.log_text(
-            json.dumps({
-                "samples_dir": samples_dir,
-                "images": [p.name for p in image_paths],
-                "count": len(image_paths),
-            }, indent=2, ensure_ascii=False),
-            "config/images.json",
-        )
+        if not resume_dir:
+            mlflow.log_text(
+                json.dumps({
+                    "samples_dir": samples_dir,
+                    "images": [p.name for p in image_paths],
+                    "count": len(image_paths),
+                }, indent=2, ensure_ascii=False),
+                "config/images.json",
+            )
 
-        gt_snapshot = {}
-        for p in image_paths:
-            gt_path = Path(gt_dir) / (p.stem + ".json")
-            if gt_path.exists():
-                try:
-                    gt_snapshot[p.name] = json.loads(gt_path.read_text())
-                except Exception:
-                    pass
-        mlflow.log_text(
-            json.dumps(gt_snapshot, indent=2, ensure_ascii=False),
-            "config/ground_truth_snapshot.json",
-        )
+            gt_snapshot = {}
+            for p in image_paths:
+                gt_path = Path(gt_dir) / (p.stem + ".json")
+                if gt_path.exists():
+                    try:
+                        gt_snapshot[p.name] = json.loads(gt_path.read_text())
+                    except Exception:
+                        pass
+            mlflow.log_text(
+                json.dumps(gt_snapshot, indent=2, ensure_ascii=False),
+                "config/ground_truth_snapshot.json",
+            )
 
         all_metrics = []
         # グローバル集計用カウンタ
