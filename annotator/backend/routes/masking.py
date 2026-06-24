@@ -95,6 +95,93 @@ def random_text(n: int) -> str:
     return "".join(random.choices(string.ascii_letters + string.digits, k=n))
 
 
+# ---------- Font / text helpers ----------
+
+def _load_font(font_path: Optional[str], font_size: int) -> ImageFont.ImageFont:
+    if font_path:
+        try:
+            return ImageFont.truetype(font_path, font_size)
+        except Exception:
+            pass
+    try:
+        return ImageFont.load_default(size=font_size)
+    except TypeError:
+        return ImageFont.load_default()
+
+
+def _measure(font, text: str) -> tuple:
+    try:
+        tb = font.getbbox(text)
+        return tb[2] - tb[0], tb[3] - tb[1]
+    except AttributeError:
+        return len(text) * 8, 13
+
+
+def _draw_text_in_bbox(
+    img: Image.Image,
+    x1: int, y1: int, x2: int, y2: int,
+    fg: tuple,
+    font_path: Optional[str],
+) -> None:
+    """
+    bbox 内にランダムテキストを描画する。
+    縦長 bbox (bh > bw) のときは横書きを90°回転して縦書き風にレンダリング。
+    テキストが bbox をはみ出さないようフォントサイズ縮小・文字数切り詰めを行う。
+    """
+    bw, bh = x2 - x1, y2 - y1
+    margin = 4
+    is_vertical = bh > bw
+
+    if is_vertical:
+        # フォントサイズ = bbox 幅に収まるサイズ（回転後の文字高さ）
+        font_size = max(8, int(bw * 0.80))
+        font = _load_font(font_path, font_size)
+
+        # 文字数 = bbox 高さに収まる文字列幅を想定
+        n_chars = max(1, int(bh / (font_size * 0.65)))
+        text = random_text(n_chars)
+        tw, th = _measure(font, text)
+
+        # 回転後に縦方向へはみ出さないよう文字数を切り詰め (tw → 回転後の高さ)
+        while tw > bh - margin and len(text) > 1:
+            text = text[:-1]
+            tw, th = _measure(font, text)
+
+        # 水平テキストを一時 RGBA に描いて 90° 時計回りに回転 → 上から下へ読む縦書き
+        pad = 2
+        tmp = Image.new("RGBA", (max(1, tw + pad * 2), max(1, th + pad * 2)), (0, 0, 0, 0))
+        ImageDraw.Draw(tmp).text((pad, pad), text, fill=fg, font=font)
+        rotated = tmp.rotate(-90, expand=True)   # -90 = CW
+        rw, rh = rotated.size
+
+        px = x1 + max(0, (bw - rw) // 2)
+        py = y1 + max(0, (bh - rh) // 2)
+        img.paste(rotated, (px, py), rotated)
+
+    else:
+        # フォントサイズ = bbox 高さに収まるサイズ
+        font_size = max(8, int(bh * 0.75))
+        font = _load_font(font_path, font_size)
+        n_chars = max(1, int(bw / (font_size * 0.55)))
+        text = random_text(n_chars)
+        tw, th = _measure(font, text)
+
+        # bbox 幅に収まるまでフォントサイズを縮小
+        while tw > bw - margin and font_size > 8:
+            font_size = max(8, font_size - 2)
+            font = _load_font(font_path, font_size)
+            tw, th = _measure(font, text)
+
+        # それでも収まらなければ文字数を切り詰め
+        while tw > bw - margin and len(text) > 1:
+            text = text[:-1]
+            tw, th = _measure(font, text)
+
+        tx = x1 + max(0, (bw - tw) // 2)
+        ty = y1 + max(0, (bh - th) // 2)
+        ImageDraw.Draw(img).text((tx, ty), text, fill=fg, font=font)
+
+
 # ---------- Pydantic schemas ----------
 
 class BboxItem(BaseModel):
@@ -147,9 +234,7 @@ def apply_masking(req: MaskRequest, config: Config = Depends(get_config)):
     out_path = out_dir / req.filename
 
     img = Image.open(src_path).convert("RGBA")
-    draw = ImageDraw.Draw(img)
     iw, ih = img.size
-
     font_path = get_font_path(req.font_name) if req.font_name else None
 
     for bbox in req.bboxes:
@@ -165,34 +250,10 @@ def apply_masking(req: MaskRequest, config: Config = Depends(get_config)):
         bg = sample_background(img, x1, y1, x2, y2)
         fg = contrasting_color(bg)
 
-        draw.rectangle([x1, y1, x2, y2], fill=bg)
-
-        font_size = max(8, int((y2 - y1) * 0.70))
-        font = None
-        if font_path:
-            try:
-                font = ImageFont.truetype(font_path, font_size)
-            except Exception:
-                font = None
-        if font is None:
-            try:
-                font = ImageFont.load_default(size=font_size)
-            except TypeError:
-                font = ImageFont.load_default()
-
-        n_chars = max(1, int((x2 - x1) / (font_size * 0.55)))
-        text = random_text(n_chars)
-
-        try:
-            tb = font.getbbox(text)
-            tw, th = tb[2] - tb[0], tb[3] - tb[1]
-        except AttributeError:
-            tw = len(text) * max(6, font_size // 2)
-            th = font_size
-
-        tx = x1 + max(0, ((x2 - x1) - tw) // 2)
-        ty = y1 + max(0, ((y2 - y1) - th) // 2)
-        draw.text((tx, ty), text, fill=fg, font=font)
+        # 背景色で塗りつぶし
+        ImageDraw.Draw(img).rectangle([x1, y1, x2, y2], fill=bg)
+        # テキスト描画（縦長なら縦書き風、横長なら横書き）
+        _draw_text_in_bbox(img, x1, y1, x2, y2, fg, font_path)
 
     if src_path.suffix.lower() in (".jpg", ".jpeg"):
         img = img.convert("RGB")
