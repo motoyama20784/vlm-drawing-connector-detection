@@ -205,6 +205,15 @@ def run_experiment(config_path: str) -> None:
             + list(Path(samples_dir).glob("*.jpg"))
         )
 
+        mlflow.log_text(
+            json.dumps({
+                "samples_dir": samples_dir,
+                "images": [p.name for p in image_paths],
+                "count": len(image_paths),
+            }, indent=2, ensure_ascii=False),
+            "config/images.json",
+        )
+
         all_metrics = []
         # グローバル集計用カウンタ
         totals = {
