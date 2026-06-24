@@ -143,7 +143,7 @@ def list_results(dir: str = "samples"):
 
 
 @router.get("/results/evaluate")
-def evaluate_results(dir: str, image: str, result_file: str = None):
+def evaluate_results(dir: str, image: str, result_file: str = None, iou_threshold: float = 0.3):
     cfg = get_config()
     stem = Path(image).stem
     gt_dir = cfg.data_dir / "ground_truth"
@@ -171,7 +171,7 @@ def evaluate_results(dir: str, image: str, result_file: str = None):
         "dir": dir,
         "gt_boxes": gt_boxes,
         "pred_boxes": pred_boxes,
-        "matches": _match(pred_boxes, gt_boxes),
+        "matches": _match(pred_boxes, gt_boxes, iou_threshold=iou_threshold),
         "result_files": all_result_files,
         "selected_result_file": selected,
         "completed": completed,

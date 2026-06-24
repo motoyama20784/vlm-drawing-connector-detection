@@ -2,11 +2,24 @@ import { useRef, useEffect, useReducer, useCallback, useState } from 'react'
 import { zoomReducer } from './AnnotationCanvas.jsx'
 
 const C = {
-  gtTp:    '#4ade80',
-  gtFn:    '#f87171',
-  predTp:  '#60a5fa',
-  nearFp:  '#fb923c',
-  ghostFp: '#c084fc',
+  gtTp:      '#4ade80',
+  gtFn:      '#facc15',
+  gtFnZero:  '#ff1744',
+  predTp:    '#60a5fa',
+  nearFp:    '#fb923c',
+  ghostFp:   '#c084fc',
+}
+
+function computeIou(a, b) {
+  const ax1 = a.x_center - a.width / 2, ax2 = a.x_center + a.width / 2
+  const ay1 = a.y_center - a.height / 2, ay2 = a.y_center + a.height / 2
+  const bx1 = b.x_center - b.width / 2, bx2 = b.x_center + b.width / 2
+  const by1 = b.y_center - b.height / 2, by2 = b.y_center + b.height / 2
+  const iw = Math.max(0, Math.min(ax2, bx2) - Math.max(ax1, bx1))
+  const ih = Math.max(0, Math.min(ay2, by2) - Math.max(ay1, by1))
+  const inter = iw * ih
+  if (inter === 0) return 0
+  return inter / (a.width * a.height + b.width * b.height - inter)
 }
 
 export default function ResultsCanvas({ imageSrc, evaluation }) {
@@ -89,8 +102,13 @@ export default function ResultsCanvas({ imageSrc, evaluation }) {
 
     gt_boxes.forEach((box, i) => {
       const sel = selectedBox?.type === 'gt' && selectedBox?.idx === i
-      drawBox(box, tpGtSet.has(i) ? C.gtTp : C.gtFn, true,
-        sel ? (tpGtSet.has(i) ? `GT${i + 1}` : `GT${i + 1} 見逃し`) : null)
+      if (tpGtSet.has(i)) {
+        drawBox(box, C.gtTp, true, sel ? `GT${i + 1}` : null)
+      } else {
+        const hasAnyOverlap = pred_boxes.some(p => computeIou(box, p) > 0)
+        const color = hasAnyOverlap ? C.gtFn : C.gtFnZero
+        drawBox(box, color, true, sel ? `GT${i + 1} 見逃し${hasAnyOverlap ? '' : '(完全)'}` : null)
+      }
     })
 
     pred_boxes.forEach((box, i) => {
@@ -225,11 +243,12 @@ export default function ResultsCanvas({ imageSrc, evaluation }) {
         fontSize: '12px', lineHeight: '2', userSelect: 'none', pointerEvents: 'none',
       }}>
         {[
-          [C.gtTp,    '┄┄', 'GT (TP)'],
-          [C.gtFn,    '┄┄', 'GT (見逃し)'],
-          [C.predTp,  '──', 'Pred TP'],
-          [C.nearFp,  '──', 'Near FP'],
-          [C.ghostFp, '──', 'Ghost FP'],
+          [C.gtTp,     '┄┄', 'GT (TP)'],
+          [C.gtFn,     '┄┄', 'GT (見逃し)'],
+          [C.gtFnZero, '┄┄', 'GT (完全見逃し)'],
+          [C.predTp,   '──', 'Pred TP'],
+          [C.nearFp,   '──', 'Near FP'],
+          [C.ghostFp,  '──', 'Ghost FP'],
         ].map(([color, line, label]) => (
           <div key={label} style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
             <span style={{ color, fontFamily: 'monospace', fontSize: '14px' }}>{line}</span>

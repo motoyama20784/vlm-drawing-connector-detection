@@ -29,10 +29,11 @@ export default function ResultsViewer({ filename, dir, onBack }) {
   const [evaluation, setEvaluation] = useState(null)
   const [loading, setLoading] = useState(false)
   const [selectedFile, setSelectedFile] = useState(null)
+  const [iouThreshold, setIouThreshold] = useState(0.3)
 
-  const doFetch = useCallback((file) => {
+  const doFetch = useCallback((file, iou) => {
     setLoading(true)
-    fetchResultsEvaluate(dir, filename, file)
+    fetchResultsEvaluate(dir, filename, file, iou)
       .then(data => setEvaluation(data))
       .catch(console.error)
       .finally(() => setLoading(false))
@@ -41,9 +42,10 @@ export default function ResultsViewer({ filename, dir, onBack }) {
   useEffect(() => {
     setEvaluation(null)
     setSelectedFile(null)
+    setIouThreshold(0.3)
     let cancelled = false
     setLoading(true)
-    fetchResultsEvaluate(dir, filename, null)
+    fetchResultsEvaluate(dir, filename, null, 0.3)
       .then(data => {
         if (cancelled) return
         setEvaluation(data)
@@ -56,7 +58,12 @@ export default function ResultsViewer({ filename, dir, onBack }) {
 
   const handleFileChange = (file) => {
     setSelectedFile(file)
-    doFetch(file)
+    doFetch(file, iouThreshold)
+  }
+
+  const handleIouChange = (val) => {
+    setIouThreshold(val)
+    doFetch(selectedFile, val)
   }
 
   const metrics = evaluation?.matches?.metrics
@@ -101,6 +108,23 @@ export default function ResultsViewer({ filename, dir, onBack }) {
         }}>
           {filename}
         </span>
+        {/* IoU threshold slider */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
+          <label style={{ fontSize: '12px', color: '#6a9c6a', whiteSpace: 'nowrap' }}>IoU閾値:</label>
+          <input
+            type="range"
+            min="0.1" max="0.9" step="0.01"
+            value={iouThreshold}
+            onChange={e => handleIouChange(Number(e.target.value))}
+            style={{ width: '90px', accentColor: '#4caf50', cursor: 'pointer' }}
+          />
+          <span style={{
+            fontSize: '12px', color: '#a8e6a8', fontFamily: 'monospace',
+            minWidth: '30px', textAlign: 'right',
+          }}>
+            {iouThreshold.toFixed(2)}
+          </span>
+        </div>
         {evaluation?.result_files?.length > 0 && (
           <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
             <label style={{ fontSize: '12px', color: '#6a9c6a', whiteSpace: 'nowrap' }}>実験結果:</label>
@@ -162,7 +186,7 @@ export default function ResultsViewer({ filename, dir, onBack }) {
                 {/* Big 3 metrics */}
                 <div style={{ marginBottom: '12px', padding: '10px', background: '#0d1a0e', borderRadius: '6px' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-around', marginBottom: '10px' }}>
-                    {[['F1', metrics.f1, f1Color], ['P', metrics.precision, '#c0d8f0'], ['R', metrics.recall, '#c0d8f0']].map(([label, val, color]) => (
+                    {[['F1', metrics.f1, f1Color], ['Precision', metrics.precision, '#c0d8f0'], ['Recall', metrics.recall, '#c0d8f0']].map(([label, val, color]) => (
                       <div key={label} style={{ textAlign: 'center' }}>
                         <div style={{ fontSize: '11px', color: '#6a9c6a' }}>{label}</div>
                         <div style={{ fontSize: '22px', fontWeight: 'bold', color }}>{val.toFixed(2)}</div>
