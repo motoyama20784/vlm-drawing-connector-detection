@@ -55,10 +55,13 @@ export default function App() {
   const [selectedId, setSelectedId] = useState(null)
   const [completed, setCompleted] = useState(false)
   const [inferring, setInferring] = useState(null)
+  const [galleryDir, setGalleryDir] = useState('')
   const [maskingSelected, setMaskingSelected] = useState('')
   const [maskingImageDir, setMaskingImageDir] = useState('samples')
+  const [maskingGalleryDir, setMaskingGalleryDir] = useState('')
   const [resultsImage, setResultsImage] = useState('')
   const [resultsDir, setResultsDir] = useState('samples')
+  const [resultsGalleryDir, setResultsGalleryDir] = useState('')
   const [saving, setSaving] = useState(false)
   const [saveStatus, setSaveStatus] = useState('')
   const [sidebarWidth, setSidebarWidth] = useState(260)
@@ -232,13 +235,13 @@ export default function App() {
       <div style={{ height: '100vh', display: 'flex', flexDirection: 'column', background: '#0d1b2a' }}>
         <NavBar currentPage={page} onNavigate={setPage} />
         {page === 'gallery' && (
-          <GalleryPage key={galleryKey} onSelectImage={openEditor} />
+          <GalleryPage key={galleryKey} onSelectImage={openEditor} selectedDir={galleryDir} onDirChange={setGalleryDir} />
         )}
         {page === 'masking_gallery' && (
-          <MaskingGalleryPage onSelectImage={openMaskingEditor} />
+          <MaskingGalleryPage onSelectImage={openMaskingEditor} selectedDir={maskingGalleryDir} onDirChange={setMaskingGalleryDir} />
         )}
         {page === 'results_gallery' && (
-          <ResultsGalleryPage onSelectImage={openResultsViewer} />
+          <ResultsGalleryPage onSelectImage={openResultsViewer} selectedDir={resultsGalleryDir} onDirChange={setResultsGalleryDir} />
         )}
       </div>
     )

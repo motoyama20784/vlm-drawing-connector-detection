@@ -18,16 +18,15 @@ function MaskBadge({ masked }) {
   )
 }
 
-export default function MaskingGalleryPage({ onSelectImage }) {
+export default function MaskingGalleryPage({ onSelectImage, selectedDir, onDirChange }) {
   const [dirs, setDirs] = useState([])
-  const [selectedDir, setSelectedDir] = useState('')
   const [images, setImages] = useState([])
   const [loading, setLoading] = useState(false)
 
   useEffect(() => {
     fetchDirs().then(d => {
       setDirs(d)
-      if (d.length > 0) setSelectedDir(d[0])
+      if (!selectedDir && d.length > 0) onDirChange(d[0])
     }).catch(console.error)
   }, [])
 
@@ -60,7 +59,7 @@ export default function MaskingGalleryPage({ onSelectImage }) {
           <label style={{ fontSize: '13px', color: '#9a7acc' }}>ディレクトリ:</label>
           <select
             value={selectedDir}
-            onChange={e => setSelectedDir(e.target.value)}
+            onChange={e => onDirChange(e.target.value)}
             style={{
               padding: '4px 8px', background: '#1b1a2e', color: '#e2eaf5',
               border: '1px solid #3a2a6e', borderRadius: '4px', fontSize: '13px',

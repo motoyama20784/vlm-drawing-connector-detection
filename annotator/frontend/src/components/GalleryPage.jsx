@@ -26,16 +26,15 @@ function StatusBadge({ completed, bboxCount }) {
   )
 }
 
-export default function GalleryPage({ onSelectImage }) {
+export default function GalleryPage({ onSelectImage, selectedDir, onDirChange }) {
   const [dirs, setDirs] = useState([])
-  const [selectedDir, setSelectedDir] = useState('')
   const [images, setImages] = useState([])
   const [loading, setLoading] = useState(false)
 
   useEffect(() => {
     fetchDirs().then(d => {
       setDirs(d)
-      if (d.length > 0) setSelectedDir(d.includes('inputs') ? 'inputs' : d[0])
+      if (!selectedDir && d.length > 0) onDirChange(d.includes('inputs') ? 'inputs' : d[0])
     }).catch(console.error)
   }, [])
 
@@ -63,7 +62,7 @@ export default function GalleryPage({ onSelectImage }) {
           <label style={{ fontSize: '13px', color: '#7a9cc0' }}>ディレクトリ:</label>
           <select
             value={selectedDir}
-            onChange={e => setSelectedDir(e.target.value)}
+            onChange={e => onDirChange(e.target.value)}
             style={{
               padding: '4px 8px', background: '#1b2d3e', color: '#e2eaf5',
               border: '1px solid #2a4060', borderRadius: '4px', fontSize: '13px',

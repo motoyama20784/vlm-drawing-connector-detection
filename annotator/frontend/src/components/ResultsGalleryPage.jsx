@@ -39,16 +39,15 @@ function ResultBadge({ hasGt, resultFiles, metrics }) {
   )
 }
 
-export default function ResultsGalleryPage({ onSelectImage }) {
+export default function ResultsGalleryPage({ onSelectImage, selectedDir, onDirChange }) {
   const [dirs, setDirs] = useState([])
-  const [selectedDir, setSelectedDir] = useState('')
   const [images, setImages] = useState([])
   const [loading, setLoading] = useState(false)
 
   useEffect(() => {
     fetchDirs().then(d => {
       setDirs(d)
-      if (d.length > 0) setSelectedDir(d[0])
+      if (!selectedDir && d.length > 0) onDirChange(d[0])
     }).catch(console.error)
   }, [])
 
@@ -79,7 +78,7 @@ export default function ResultsGalleryPage({ onSelectImage }) {
           <label style={{ fontSize: '13px', color: '#6a9c6a' }}>ディレクトリ:</label>
           <select
             value={selectedDir}
-            onChange={e => setSelectedDir(e.target.value)}
+            onChange={e => onDirChange(e.target.value)}
             style={{
               padding: '4px 8px', background: '#0f2015', color: '#e2eaf5',
               border: '1px solid #2a5a2e', borderRadius: '4px', fontSize: '13px',
