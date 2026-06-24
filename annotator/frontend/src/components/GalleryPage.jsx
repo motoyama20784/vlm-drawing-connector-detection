@@ -26,7 +26,7 @@ function StatusBadge({ completed, bboxCount }) {
   )
 }
 
-export default function GalleryPage({ onSelectImage, onOpenMasking }) {
+export default function GalleryPage({ onSelectImage }) {
   const [dirs, setDirs] = useState([])
   const [selectedDir, setSelectedDir] = useState('')
   const [images, setImages] = useState([])
@@ -52,28 +52,13 @@ export default function GalleryPage({ onSelectImage, onOpenMasking }) {
   const done = images.filter(i => i.completed).length
 
   return (
-    <div style={{ height: '100vh', display: 'flex', flexDirection: 'column', background: '#0d1b2a' }}>
+    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', background: '#0d1b2a', minHeight: 0 }}>
       {/* ヘッダー */}
       <div style={{
-        display: 'flex', alignItems: 'center', gap: '16px',
+        display: 'flex', alignItems: 'center', gap: '16px', flexShrink: 0,
         padding: '8px 16px', background: '#112236', borderBottom: '1px solid #1e3a5f',
       }}>
         <span style={{ fontWeight: 'bold', fontSize: '15px', color: '#e2eaf5' }}>アノテーション一覧</span>
-        {onOpenMasking && (
-          <button
-            onClick={onOpenMasking}
-            style={{
-              padding: '5px 14px', borderRadius: '4px', fontSize: '13px',
-              border: '1px solid #3a2a6e', background: '#1b1a2e',
-              color: '#c4aaff', cursor: 'pointer',
-              transition: 'border-color 0.15s',
-            }}
-            onMouseEnter={e => e.currentTarget.style.borderColor = '#7c4dff'}
-            onMouseLeave={e => e.currentTarget.style.borderColor = '#3a2a6e'}
-          >
-            マスキング
-          </button>
-        )}
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
           <label style={{ fontSize: '13px', color: '#7a9cc0' }}>ディレクトリ:</label>
           <select

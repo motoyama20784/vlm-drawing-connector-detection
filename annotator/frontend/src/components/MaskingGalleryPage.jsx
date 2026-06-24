@@ -18,7 +18,7 @@ function MaskBadge({ masked }) {
   )
 }
 
-export default function MaskingGalleryPage({ onSelectImage, onBack }) {
+export default function MaskingGalleryPage({ onSelectImage }) {
   const [dirs, setDirs] = useState([])
   const [selectedDir, setSelectedDir] = useState('')
   const [images, setImages] = useState([])
@@ -48,22 +48,12 @@ export default function MaskingGalleryPage({ onSelectImage, onBack }) {
   const masked = images.filter(i => i.masked).length
 
   return (
-    <div style={{ height: '100vh', display: 'flex', flexDirection: 'column', background: '#0d1b2a' }}>
+    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', background: '#0d1b2a', minHeight: 0 }}>
       {/* Header */}
       <div style={{
-        display: 'flex', alignItems: 'center', gap: '16px',
+        display: 'flex', alignItems: 'center', gap: '16px', flexShrink: 0,
         padding: '8px 16px', background: '#17102e', borderBottom: '1px solid #2a1a5e',
       }}>
-        <button
-          onClick={onBack}
-          style={{
-            padding: '5px 12px', borderRadius: '4px', fontSize: '13px',
-            border: '1px solid #2a4060', background: '#1e3a5c',
-            color: '#a8ccee', cursor: 'pointer',
-          }}
-        >
-          ← アノテーション
-        </button>
         <span style={{
           fontWeight: 'bold', fontSize: '15px', color: '#c4aaff',
           borderLeft: '3px solid #7c4dff', paddingLeft: '10px',

@@ -2,9 +2,45 @@ import { useState, useRef, useCallback, useEffect } from 'react'
 import GalleryPage from './components/GalleryPage.jsx'
 import MaskingGalleryPage from './components/MaskingGalleryPage.jsx'
 import MaskingEditor from './components/MaskingEditor.jsx'
+import ResultsGalleryPage from './components/ResultsGalleryPage.jsx'
+import ResultsViewer from './components/ResultsViewer.jsx'
 import AnnotationCanvas from './components/AnnotationCanvas.jsx'
 import BboxList from './components/BboxList.jsx'
 import { fetchImageUrl, fetchAnnotation, saveAnnotation, inferBbox } from './api.js'
+
+function NavBar({ currentPage, onNavigate }) {
+  const items = [
+    { key: 'gallery', label: 'アノテーション', color: '#5aabff', border: '#1e3a5f' },
+    { key: 'masking_gallery', label: 'マスキング', color: '#c4aaff', border: '#3a2a6e' },
+    { key: 'results_gallery', label: '結果表示', color: '#a8e6a8', border: '#2a5a2e' },
+  ]
+  return (
+    <div style={{
+      display: 'flex', gap: '2px', padding: '6px 12px',
+      background: '#0a1420', borderBottom: '1px solid #1a2a3a', flexShrink: 0,
+    }}>
+      {items.map(({ key, label, color, border }) => {
+        const active = currentPage === key
+        return (
+          <button
+            key={key}
+            onClick={() => onNavigate(key)}
+            style={{
+              padding: '6px 18px', borderRadius: '4px', fontSize: '13px',
+              border: `1px solid ${active ? color : border}`,
+              background: active ? 'rgba(255,255,255,0.07)' : 'transparent',
+              color: active ? color : '#7a9cc0',
+              cursor: 'pointer', fontWeight: active ? 'bold' : 'normal',
+              transition: 'all 0.15s',
+            }}
+          >
+            {label}
+          </button>
+        )
+      })}
+    </div>
+  )
+}
 
 const newId = () => crypto.randomUUID()
 
@@ -21,6 +57,8 @@ export default function App() {
   const [inferring, setInferring] = useState(null)
   const [maskingSelected, setMaskingSelected] = useState('')
   const [maskingImageDir, setMaskingImageDir] = useState('samples')
+  const [resultsImage, setResultsImage] = useState('')
+  const [resultsDir, setResultsDir] = useState('samples')
   const [saving, setSaving] = useState(false)
   const [saveStatus, setSaveStatus] = useState('')
   const [sidebarWidth, setSidebarWidth] = useState(260)
@@ -183,22 +221,26 @@ export default function App() {
     setPage('masking_editor')
   }, [])
 
-  if (page === 'gallery') {
-    return (
-      <GalleryPage
-        key={galleryKey}
-        onSelectImage={openEditor}
-        onOpenMasking={() => setPage('masking_gallery')}
-      />
-    )
-  }
+  const openResultsViewer = useCallback((filename, dir) => {
+    setResultsImage(filename)
+    setResultsDir(dir)
+    setPage('results_viewer')
+  }, [])
 
-  if (page === 'masking_gallery') {
+  if (['gallery', 'masking_gallery', 'results_gallery'].includes(page)) {
     return (
-      <MaskingGalleryPage
-        onSelectImage={openMaskingEditor}
-        onBack={() => setPage('gallery')}
-      />
+      <div style={{ height: '100vh', display: 'flex', flexDirection: 'column', background: '#0d1b2a' }}>
+        <NavBar currentPage={page} onNavigate={setPage} />
+        {page === 'gallery' && (
+          <GalleryPage key={galleryKey} onSelectImage={openEditor} />
+        )}
+        {page === 'masking_gallery' && (
+          <MaskingGalleryPage onSelectImage={openMaskingEditor} />
+        )}
+        {page === 'results_gallery' && (
+          <ResultsGalleryPage onSelectImage={openResultsViewer} />
+        )}
+      </div>
     )
   }
 
@@ -209,6 +251,18 @@ export default function App() {
         imageDir={maskingImageDir}
         onBack={() => setPage('masking_gallery')}
       />
+    )
+  }
+
+  if (page === 'results_viewer') {
+    return (
+      <div style={{ height: '100vh', display: 'flex', flexDirection: 'column', background: '#0d1b2a', overflow: 'hidden' }}>
+        <ResultsViewer
+          filename={resultsImage}
+          dir={resultsDir}
+          onBack={() => setPage('results_gallery')}
+        />
+      </div>
     )
   }
 
