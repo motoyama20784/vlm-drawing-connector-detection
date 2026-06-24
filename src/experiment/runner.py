@@ -1,6 +1,7 @@
 import argparse
 import json
 import os
+import time
 from pathlib import Path
 
 import matplotlib
@@ -218,12 +219,14 @@ def run_experiment(config_path: str) -> None:
         }
 
         for image_path in image_paths:
+            t0 = time.time()
             raw_response, token_stats = detect(
                 str(image_path),
                 prompt_text,
                 config["model"],
                 config["params"],
             )
+            inference_sec = time.time() - t0
             pred_boxes, parse_failed = parse_connectors(raw_response)
             gt_boxes = load_ground_truth(gt_dir, image_path.name)
             metrics = evaluate(
@@ -243,6 +246,7 @@ def run_experiment(config_path: str) -> None:
             )
             draw_bboxes(str(image_path), pred_boxes, str(vis_path))
 
+            mlflow.log_metric(f"inference_sec_{stem}", round(inference_sec, 1))
             mlflow.log_metric(f"eval_count_{stem}", token_stats["eval_count"])
             mlflow.log_metric(f"prompt_eval_count_{stem}", token_stats["prompt_eval_count"])
             mlflow.log_metric(f"peak_vram_gb_{stem}", token_stats["peak_vram_gb"])
