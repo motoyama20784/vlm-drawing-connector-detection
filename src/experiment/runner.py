@@ -214,6 +214,19 @@ def run_experiment(config_path: str) -> None:
             "config/images.json",
         )
 
+        gt_snapshot = {}
+        for p in image_paths:
+            gt_path = Path(gt_dir) / (p.stem + ".json")
+            if gt_path.exists():
+                try:
+                    gt_snapshot[p.name] = json.loads(gt_path.read_text())
+                except Exception:
+                    pass
+        mlflow.log_text(
+            json.dumps(gt_snapshot, indent=2, ensure_ascii=False),
+            "config/ground_truth_snapshot.json",
+        )
+
         all_metrics = []
         # グローバル集計用カウンタ
         totals = {
