@@ -153,6 +153,7 @@ def run_experiment(config_path: str) -> None:
         mlflow.log_artifact(config_path, "config")
 
         mlflow.log_param("image_mode", image_mode)
+        mlflow.log_param("samples_dir", config["data"]["samples_dir"])
         mlflow.log_param("model", config["model"])
         mlflow.log_param("prompt_file", config["prompt"]["file"])
         mlflow.log_param("prompt_type", config["prompt"]["type"])
