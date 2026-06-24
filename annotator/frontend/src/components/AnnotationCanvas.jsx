@@ -78,6 +78,9 @@ export default function AnnotationCanvas({
     ctx.clearRect(0, 0, canvas.width, canvas.height)
     ctx.drawImage(imageRef.current, 0, 0, canvas.width, canvas.height)
 
+    const lw = Math.max(1, canvas.width * 0.002)
+    const fontSize = Math.max(12, Math.round(canvas.width * 0.009))
+
     bboxes.forEach((bbox, i) => {
       const isSelected = bbox.id === selectedId
       const x = (bbox.x_center - bbox.width / 2) * canvas.width
@@ -91,19 +94,19 @@ export default function AnnotationCanvas({
         ctx.fillRect(x, y, w, h)
       }
       ctx.strokeStyle = color
-      ctx.lineWidth = isSelected ? 3 : 2
+      ctx.lineWidth = isSelected ? lw * 1.5 : lw
       ctx.strokeRect(x, y, w, h)
       ctx.fillStyle = color
-      ctx.font = `bold ${isSelected ? 14 : 13}px sans-serif`
-      ctx.fillText(String(i + 1), x + 3, y + 15)
+      ctx.font = `bold ${fontSize}px sans-serif`
+      ctx.fillText(String(i + 1), x + lw * 2, y + fontSize)
     })
 
     if (drawingRef.current && startPosRef.current && currentPosRef.current) {
       const sp = startPosRef.current
       const cp = currentPosRef.current
       ctx.strokeStyle = '#ff5252'
-      ctx.lineWidth = 2
-      ctx.setLineDash([5, 3])
+      ctx.lineWidth = lw
+      ctx.setLineDash([lw * 4, lw * 2])
       ctx.strokeRect(
         Math.min(sp.x, cp.x), Math.min(sp.y, cp.y),
         Math.abs(cp.x - sp.x), Math.abs(cp.y - sp.y)
