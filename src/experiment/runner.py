@@ -40,7 +40,9 @@ def run_experiment(config_path: str) -> None:
     with mlflow.start_run() as run:
         run_id = run.info.run_id
         run_name = run.info.run_name or run_id[:8]
-        outputs_dir = outputs_base / f"{run_name}_{run_id[:8]}"
+        samples_path = Path(config["data"]["samples_dir"])
+        image_mode = "masked" if "masking" in samples_path.parts else "original"
+        outputs_dir = outputs_base / f"{run_name}_{run_id[:8]}_{image_mode}"
         json_dir = outputs_dir / "json"
         raw_dir  = outputs_dir / "raw"
         vis_dir  = outputs_dir / "vis"
@@ -50,6 +52,7 @@ def run_experiment(config_path: str) -> None:
         mlflow.set_tag("output_dir", str(outputs_dir))
         mlflow.log_artifact(config_path, "config")
 
+        mlflow.log_param("image_mode", image_mode)
         mlflow.log_param("model", config["model"])
         mlflow.log_param("prompt_file", config["prompt"]["file"])
         mlflow.log_param("prompt_type", config["prompt"]["type"])
@@ -85,6 +88,7 @@ def run_experiment(config_path: str) -> None:
         run_info = {
             "run_id": run_id,
             "run_name": run_name,
+            "image_mode": image_mode,
             "mlflow_url": f"{MLFLOW_TRACKING_URI}/#/experiments/1/runs/{run_id}",
             "output_dir": str(outputs_dir),
         }

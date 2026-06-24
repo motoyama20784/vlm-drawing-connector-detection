@@ -163,6 +163,18 @@ def evaluate_results(dir: str, image: str, result_file: str = None, iou_threshol
         except Exception:
             pass
 
+    image_mode = "original"
+    if selected:
+        run_dir_name = selected.split("/")[0]
+        run_info_path = outputs_dir / run_dir_name / "run_info.json"
+        if run_info_path.exists():
+            try:
+                image_mode = json.loads(run_info_path.read_text()).get("image_mode", "original")
+            except Exception:
+                pass
+
+    has_masked = (cfg.masked_dir / dir / image).exists()
+
     return {
         "image": image,
         "dir": dir,
@@ -172,4 +184,6 @@ def evaluate_results(dir: str, image: str, result_file: str = None, iou_threshol
         "result_files": all_result_files,
         "selected_result_file": selected,
         "completed": completed,
+        "image_mode": image_mode,
+        "has_masked": has_masked,
     }

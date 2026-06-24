@@ -30,6 +30,13 @@ export default function ResultsViewer({ filename, dir, onBack }) {
   const [loading, setLoading] = useState(false)
   const [selectedFile, setSelectedFile] = useState(null)
   const [iouThreshold, setIouThreshold] = useState(0.3)
+  const [useMasked, setUseMasked] = useState(false)
+
+  const filterFiles = useCallback((files, masked) =>
+    (files ?? []).filter(f => {
+      const runDir = f.split('/')[0]
+      return masked ? runDir.endsWith('_masked') : !runDir.endsWith('_masked')
+    }), [])
 
   const doFetch = useCallback((file, iou) => {
     setLoading(true)
@@ -50,6 +57,7 @@ export default function ResultsViewer({ filename, dir, onBack }) {
         if (cancelled) return
         setEvaluation(data)
         setSelectedFile(data.selected_result_file)
+        setUseMasked(data.image_mode === 'masked')
       })
       .catch(console.error)
       .finally(() => { if (!cancelled) setLoading(false) })
@@ -59,6 +67,16 @@ export default function ResultsViewer({ filename, dir, onBack }) {
   const handleFileChange = (file) => {
     setSelectedFile(file)
     doFetch(file, iouThreshold)
+  }
+
+  const handleToggle = (masked) => {
+    setUseMasked(masked)
+    const filtered = filterFiles(evaluation?.result_files, masked)
+    const first = filtered[0] ?? null
+    if (first && first !== selectedFile) {
+      setSelectedFile(first)
+      doFetch(first, iouThreshold)
+    }
   }
 
   const handleIouChange = (val) => {
@@ -79,7 +97,9 @@ export default function ResultsViewer({ filename, dir, onBack }) {
 
   const fmt = v => Number.isInteger(v) ? String(v) : v.toFixed(3)
 
-  const imageSrc = filename ? fetchImageUrl(filename, dir) : ''
+  const hasMasked = evaluation?.has_masked ?? false
+  const imageArea = (useMasked && hasMasked) ? 'masking' : 'original'
+  const imageSrc = filename ? fetchImageUrl(filename, dir, imageArea) : ''
 
   return (
     // flex:1 + min-height:0 ensures this fills the parent flex column without height:100% resolution issues
@@ -123,6 +143,41 @@ export default function ResultsViewer({ filename, dir, onBack }) {
             {iouThreshold.toFixed(2)}
           </span>
         </div>
+        {/* 推論画像種別バッジ */}
+        {evaluation && (
+          <span style={{
+            padding: '3px 8px', borderRadius: '10px', fontSize: '11px', fontWeight: 'bold', flexShrink: 0,
+            background: evaluation.image_mode === 'masked' ? '#1a1a4a' : '#0d2a0d',
+            color: evaluation.image_mode === 'masked' ? '#c084fc' : '#4ade80',
+            border: `1px solid ${evaluation.image_mode === 'masked' ? '#5a2a9a' : '#2a6a2a'}`,
+          }}>
+            推論: {evaluation.image_mode === 'masked' ? 'マスク済み画像' : 'オリジナル画像'}
+          </span>
+        )}
+        {/* 推論結果フィルタトグル */}
+        <div style={{ display: 'flex', gap: '2px', flexShrink: 0 }}>
+          {[false, true].map(masked => {
+            const active = useMasked === masked
+            const count = filterFiles(evaluation?.result_files, masked).length
+            const disabled = count === 0
+            return (
+              <button
+                key={String(masked)}
+                onClick={() => !disabled && handleToggle(masked)}
+                disabled={disabled}
+                style={{
+                  padding: '4px 10px', fontSize: '12px', borderRadius: '3px',
+                  border: `1px solid ${active ? '#4caf50' : '#2a5a2e'}`,
+                  background: active ? '#1a4a1e' : 'transparent',
+                  color: disabled ? '#2a4a2a' : active ? '#a8e6a8' : '#5a9c5a',
+                  cursor: disabled ? 'not-allowed' : 'pointer',
+                }}
+              >
+                {masked ? 'マスク済み' : 'オリジナル'}{count > 0 ? ` (${count})` : ''}
+              </button>
+            )
+          })}
+        </div>
         {evaluation?.result_files?.length > 0 && (
           <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
             <label style={{ fontSize: '12px', color: '#6a9c6a', whiteSpace: 'nowrap' }}>実験結果:</label>
@@ -135,7 +190,7 @@ export default function ResultsViewer({ filename, dir, onBack }) {
                 maxWidth: '300px',
               }}
             >
-              {evaluation.result_files.map(f => (
+              {filterFiles(evaluation.result_files, useMasked).map(f => (
                 <option key={f} value={f}>{f}</option>
               ))}
             </select>
