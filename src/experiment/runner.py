@@ -89,6 +89,7 @@ def run_experiment(config_path: str) -> None:
             "ghost_fp_count": 0,
             "duplicate_gt_count": 0,
             "merged_pred_count": 0,
+            "parse_failed_count": 0,
         }
 
         for image_path in image_paths:
@@ -98,7 +99,7 @@ def run_experiment(config_path: str) -> None:
                 config["model"],
                 config["params"],
             )
-            pred_boxes = parse_connectors(raw_response)
+            pred_boxes, parse_failed = parse_connectors(raw_response)
             gt_boxes = load_ground_truth(gt_dir, image_path.name)
             metrics = evaluate(
                 pred_boxes, gt_boxes, config["evaluation"]["iou_threshold"]
@@ -128,6 +129,7 @@ def run_experiment(config_path: str) -> None:
             mlflow.log_metric(f"weights_vram_gb_{stem}", token_stats["weights_vram_gb"])
             mlflow.log_metric(f"kv_cache_vram_gb_{stem}", token_stats["kv_cache_vram_gb"])
             mlflow.log_param(f"thinking_fallback_{stem}", token_stats["thinking_fallback"])
+            mlflow.log_metric(f"parse_failed_{stem}", int(parse_failed))
             mlflow.log_metric(f"precision_{stem}", metrics["precision"])
             mlflow.log_metric(f"recall_{stem}", metrics["recall"])
             mlflow.log_metric(f"f1_{stem}", metrics["f1"])
@@ -154,9 +156,11 @@ def run_experiment(config_path: str) -> None:
             totals["ghost_fp_count"]   += metrics["ghost_fp_count"]
             totals["duplicate_gt_count"] += metrics["duplicate_gt_count"]
             totals["merged_pred_count"]  += metrics["merged_pred_count"]
+            totals["parse_failed_count"] += int(parse_failed)
 
             print(
                 f"\n{image_path.name}:\n"
+                f"  パース   : {'失敗' if parse_failed else '成功'}\n"
                 f"  基本     : P={metrics['precision']:.3f}  R={metrics['recall']:.3f}  F1={metrics['f1']:.3f}\n"
                 f"  TP/FP/FN : {metrics['tp']} / {metrics['fp']} / {metrics['fn']}  (GT={len(gt_boxes)} pred={len(pred_boxes)})\n"
                 f"  [A] miss_rate       = {metrics['miss_rate']:.3f}  (見逃し {metrics['fn']}件)\n"
@@ -204,11 +208,14 @@ def run_experiment(config_path: str) -> None:
                 "merged_pred_rate": totals["merged_pred_count"] / g_pred if g_pred > 0 else 0.0,
             }
 
+            parse_failure_rate = totals["parse_failed_count"] / n
+
             # MLflow へ記録
             for key, val in macro.items():
                 mlflow.log_metric(f"macro_{key}", val)
             for key, val in glb.items():
                 mlflow.log_metric(f"global_{key}", val)
+            mlflow.log_metric("global_parse_failure_rate", parse_failure_rate)
 
             print(
                 f"\n=== マクロ平均 ({n}画像・各画像均等重み) ===\n"
@@ -226,7 +233,9 @@ def run_experiment(config_path: str) -> None:
                 f"  [C] avg_matched_iou = {glb['avg_matched_iou']:.3f}\n"
                 f"  [D] ghost_fp_rate   = {glb['ghost_fp_rate']:.3f}\n"
                 f"  [E] duplicate_gt_rate = {glb['duplicate_gt_rate']:.3f}\n"
-                f"  [F] merged_pred_rate  = {glb['merged_pred_rate']:.3f}"
+                f"  [F] merged_pred_rate  = {glb['merged_pred_rate']:.3f}\n"
+                f"\n=== パース失敗 ===\n"
+                f"  失敗数 / 画像数 : {totals['parse_failed_count']} / {n}  (rate={parse_failure_rate:.3f})"
             )
 
 
