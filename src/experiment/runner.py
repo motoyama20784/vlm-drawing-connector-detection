@@ -124,7 +124,7 @@ def load_ground_truth(gt_dir: str, image_name: str) -> list:
     return data.get("connectors", [])
 
 
-def run_experiment(config_path: str) -> None:
+def run_experiment(config_path: str, resume_dir: str = None) -> None:
     with open(config_path) as f:
         config = yaml.safe_load(f)
 
@@ -138,22 +138,36 @@ def run_experiment(config_path: str) -> None:
 
     print_model_info(config["model"])
 
-    with mlflow.start_run() as run:
+    if resume_dir:
+        resume_path = Path(resume_dir)
+        prior = json.loads((resume_path / "run_info.json").read_text())
+        run_ctx = mlflow.start_run(run_id=prior["run_id"])
+    else:
+        run_ctx = mlflow.start_run()
+
+    with run_ctx as run:
         run_id = run.info.run_id
         run_name = run.info.run_name or run_id[:8]
-        samples_path = Path(config["data"]["samples_dir"])
-        image_mode = "masked" if "masking" in samples_path.parts else "original"
-        outputs_dir = outputs_base / f"{run_name}_{run_id[:8]}_{image_mode}"
+
+        if resume_dir:
+            outputs_dir = Path(resume_dir)
+            print(f"[resume] {outputs_dir}")
+        else:
+            samples_path = Path(config["data"]["samples_dir"])
+            image_mode = "masked" if "masking" in samples_path.parts else "original"
+            outputs_dir = outputs_base / f"{run_name}_{run_id[:8]}_{image_mode}"
+
         json_dir = outputs_dir / "json"
         raw_dir  = outputs_dir / "raw"
         vis_dir  = outputs_dir / "vis"
         for d in (json_dir, raw_dir, vis_dir):
             d.mkdir(parents=True, exist_ok=True)
 
-        mlflow.set_tag("output_dir", str(outputs_dir))
-        mlflow.log_artifact(config_path, "config")
+        if not resume_dir:
+            mlflow.set_tag("output_dir", str(outputs_dir))
+            mlflow.log_artifact(config_path, "config")
 
-        mlflow.log_param("image_mode", image_mode)
+        mlflow.log_param("image_mode", image_mode if not resume_dir else prior["image_mode"])
         mlflow.log_param("samples_dir", config["data"]["samples_dir"])
         mlflow.log_param("model", config["model"])
         mlflow.log_param("prompt_file", config["prompt"]["file"])
@@ -187,16 +201,18 @@ def run_experiment(config_path: str) -> None:
 
         mlflow.log_text(prompt_text, "prompt.txt")
 
-        run_info = {
-            "run_id": run_id,
-            "run_name": run_name,
-            "image_mode": image_mode,
-            "mlflow_url": f"{MLFLOW_TRACKING_URI}/#/experiments/1/runs/{run_id}",
-            "output_dir": str(outputs_dir),
-        }
-        (outputs_dir / "run_info.json").write_text(
-            json.dumps(run_info, indent=2, ensure_ascii=False), encoding="utf-8"
-        )
+        if not resume_dir:
+            _image_mode = image_mode
+            run_info = {
+                "run_id": run_id,
+                "run_name": run_name,
+                "image_mode": _image_mode,
+                "mlflow_url": f"{MLFLOW_TRACKING_URI}/#/experiments/1/runs/{run_id}",
+                "output_dir": str(outputs_dir),
+            }
+            (outputs_dir / "run_info.json").write_text(
+                json.dumps(run_info, indent=2, ensure_ascii=False), encoding="utf-8"
+            )
 
         samples_dir = config["data"]["samples_dir"]
         gt_dir = config["data"]["ground_truth_dir"]
@@ -241,6 +257,28 @@ def run_experiment(config_path: str) -> None:
         }
 
         for image_path in image_paths:
+            stem = image_path.stem
+            json_path = json_dir / f"{stem}.json"
+
+            if json_path.exists():
+                print(f"[skip] {image_path.name} - already done")
+                pred_boxes = json.loads(json_path.read_text()).get("connectors", [])
+                parse_failed = False
+                gt_boxes = load_ground_truth(gt_dir, image_path.name)
+                metrics = evaluate(pred_boxes, gt_boxes, config["evaluation"]["iou_threshold"])
+                all_metrics.append(metrics)
+                totals["tp"]               += metrics["tp"]
+                totals["fp"]               += metrics["fp"]
+                totals["fn"]               += metrics["fn"]
+                totals["gt_count"]         += len(gt_boxes)
+                totals["pred_count"]       += len(pred_boxes)
+                totals["near_fp_count"]    += metrics["near_fp_count"]
+                totals["sum_matched_iou"]  += metrics["avg_matched_iou"] * metrics["tp"]
+                totals["ghost_fp_count"]   += metrics["ghost_fp_count"]
+                totals["duplicate_gt_count"] += metrics["duplicate_gt_count"]
+                totals["merged_pred_count"]  += metrics["merged_pred_count"]
+                continue
+
             t0 = time.time()
             raw_response, token_stats = detect(
                 str(image_path),
@@ -255,10 +293,7 @@ def run_experiment(config_path: str) -> None:
                 pred_boxes, gt_boxes, config["evaluation"]["iou_threshold"]
             )
 
-            stem = image_path.stem
-
             raw_path  = raw_dir  / f"{stem}.txt"
-            json_path = json_dir / f"{stem}.json"
             vis_path  = vis_dir  / f"{stem}.jpg"
 
             raw_path.write_text(raw_response, encoding="utf-8")
@@ -391,5 +426,6 @@ def run_experiment(config_path: str) -> None:
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--config", required=True, help="実験設定ファイルのパス")
+    parser.add_argument("--resume", default=None, help="再開するrunのoutputディレクトリ (例: data/outputs/calm-bee-42_abcd1234_masked)")
     args = parser.parse_args()
-    run_experiment(args.config)
+    run_experiment(args.config, resume_dir=args.resume)
