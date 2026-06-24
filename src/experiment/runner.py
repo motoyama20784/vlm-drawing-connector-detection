@@ -3,6 +3,10 @@ import json
 import os
 from pathlib import Path
 
+import matplotlib
+matplotlib.use("Agg")
+import matplotlib.pyplot as plt
+import matplotlib.patches as mpatches
 import mlflow
 import yaml
 
@@ -12,6 +16,102 @@ from src.detection.parser import parse_connectors
 from src.visualization.draw_bboxes import draw_bboxes
 
 MLFLOW_TRACKING_URI = os.getenv("MLFLOW_TRACKING_URI", "http://localhost:5000")
+
+
+def _log_summary_figure(glb: dict, all_metrics: list, image_stems: list):
+    """重要指標のサマリー図を生成して MLflow に artifact として保存する。"""
+    DARK_BG  = "#0d1b2a"
+    PANEL_BG = "#112236"
+    GREEN    = "#4ade80"
+    ORANGE   = "#ffa726"
+    RED      = "#f87171"
+    PURPLE   = "#c084fc"
+    BLUE     = "#60a5fa"
+    GRAY     = "#7a9cc0"
+
+    def _color(v, good_high=True):
+        if good_high:
+            return GREEN if v >= 0.7 else ORANGE if v >= 0.4 else RED
+        else:
+            return GREEN if v <= 0.3 else ORANGE if v <= 0.6 else RED
+
+    fig = plt.figure(figsize=(14, 8), facecolor=DARK_BG)
+    fig.suptitle("Experiment Summary", color="white", fontsize=14, fontweight="bold", y=0.97)
+
+    gs = fig.add_gridspec(2, 3, hspace=0.5, wspace=0.35,
+                          left=0.07, right=0.97, top=0.88, bottom=0.08)
+
+    # --- 1. グローバル P/R/F1 ゲージ ---
+    ax1 = fig.add_subplot(gs[0, 0])
+    ax1.set_facecolor(PANEL_BG)
+    labels = ["Precision", "Recall", "F1"]
+    vals   = [glb["precision"], glb["recall"], glb["f1"]]
+    colors = [_color(v) for v in vals]
+    bars = ax1.barh(labels, vals, color=colors, height=0.5)
+    for bar, v in zip(bars, vals):
+        ax1.text(min(v + 0.02, 0.97), bar.get_y() + bar.get_height() / 2,
+                 f"{v:.3f}", va="center", color="white", fontsize=10, fontweight="bold")
+    ax1.set_xlim(0, 1)
+    ax1.set_title("P / R / F1  (global)", color=GRAY, fontsize=10)
+    ax1.tick_params(colors="white"); ax1.spines[:].set_color("#1e3a5f")
+    ax1.set_facecolor(PANEL_BG)
+
+    # --- 2. エラー分類（near_fp / ghost_fp / miss） ---
+    ax2 = fig.add_subplot(gs[0, 1])
+    ax2.set_facecolor(PANEL_BG)
+    err_labels = ["Miss rate", "Near FP\n(coord shift)", "Ghost FP\n(hallucination)"]
+    err_vals   = [glb["miss_rate"], glb["near_fp_rate"], glb["ghost_fp_rate"]]
+    err_colors = [_color(v, good_high=False) for v in err_vals]
+    bars2 = ax2.barh(err_labels, err_vals, color=err_colors, height=0.5)
+    for bar, v in zip(bars2, err_vals):
+        ax2.text(min(v + 0.02, 0.97), bar.get_y() + bar.get_height() / 2,
+                 f"{v:.3f}", va="center", color="white", fontsize=10, fontweight="bold")
+    ax2.set_xlim(0, 1)
+    ax2.set_title("Error breakdown  (global)", color=GRAY, fontsize=10)
+    ax2.tick_params(colors="white"); ax2.spines[:].set_color("#1e3a5f")
+
+    # --- 3. avg matched IoU ---
+    ax3 = fig.add_subplot(gs[0, 2])
+    ax3.set_facecolor(PANEL_BG)
+    iou_val = glb["avg_matched_iou"]
+    iou_color = _color(iou_val)
+    theta = [0, iou_val * 3.14159]
+    ax3.barh(["Avg IoU\n(TP)"], [iou_val], color=iou_color, height=0.4)
+    ax3.barh(["Avg IoU\n(TP)"], [1 - iou_val], left=[iou_val], color="#1e3a5f", height=0.4)
+    ax3.text(0.5, 0, f"{iou_val:.3f}", ha="center", va="center",
+             color="white", fontsize=16, fontweight="bold", transform=ax3.transAxes)
+    ax3.set_xlim(0, 1); ax3.set_title("Avg Matched IoU", color=GRAY, fontsize=10)
+    ax3.tick_params(colors="white"); ax3.spines[:].set_color("#1e3a5f")
+
+    # --- 4. 画像ごと F1 棒グラフ ---
+    ax4 = fig.add_subplot(gs[1, :2])
+    ax4.set_facecolor(PANEL_BG)
+    f1s = [m["f1"] for m in all_metrics]
+    bar_colors = [_color(v) for v in f1s]
+    ax4.bar(image_stems, f1s, color=bar_colors, width=0.5)
+    for i, v in enumerate(f1s):
+        ax4.text(i, v + 0.01, f"{v:.2f}", ha="center", color="white", fontsize=9)
+    ax4.set_ylim(0, 1.1)
+    ax4.set_title("F1 per image", color=GRAY, fontsize=10)
+    ax4.tick_params(colors="white", axis="x", rotation=15)
+    ax4.tick_params(colors="white", axis="y")
+    ax4.spines[:].set_color("#1e3a5f")
+
+    # --- 5. 凡例 ---
+    ax5 = fig.add_subplot(gs[1, 2])
+    ax5.set_facecolor(PANEL_BG)
+    ax5.axis("off")
+    patches = [
+        mpatches.Patch(color=GREEN,  label="Good  (≥0.7 / ≤0.3)"),
+        mpatches.Patch(color=ORANGE, label="Mid   (≥0.4 / ≤0.6)"),
+        mpatches.Patch(color=RED,    label="Poor  (<0.4  / >0.6)"),
+    ]
+    ax5.legend(handles=patches, loc="center", fontsize=9,
+               facecolor=PANEL_BG, labelcolor="white", edgecolor="#1e3a5f")
+    ax5.set_title("Color scale", color=GRAY, fontsize=10)
+
+    mlflow.log_figure(fig, "summary.png")
+    plt.close(fig)
 
 
 def load_ground_truth(gt_dir: str, image_name: str) -> list:
@@ -235,6 +335,9 @@ def run_experiment(config_path: str) -> None:
             for key, val in glb.items():
                 mlflow.log_metric(f"global_{key}", val)
             mlflow.log_metric("global_parse_failure_rate", parse_failure_rate)
+
+            image_stems = [p.stem for p in image_paths]
+            _log_summary_figure(glb, all_metrics, image_stems)
 
             print(
                 f"\n=== マクロ平均 ({n}画像・各画像均等重み) ===\n"
