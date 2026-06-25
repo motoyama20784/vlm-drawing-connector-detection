@@ -36,7 +36,7 @@ export default function GalleryPage({ onSelectImage, selectedDir, onDirChange })
       setDirs(d)
       if (!selectedDir && d.length > 0) onDirChange(d.includes('inputs') ? 'inputs' : d[0])
     }).catch(console.error)
-  }, [])
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (!selectedDir) return

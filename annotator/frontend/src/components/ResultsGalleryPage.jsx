@@ -49,7 +49,7 @@ export default function ResultsGalleryPage({ onSelectImage, selectedDir, onDirCh
       setDirs(d)
       if (!selectedDir && d.length > 0) onDirChange(d[0])
     }).catch(console.error)
-  }, [])
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (!selectedDir) return
