@@ -80,7 +80,7 @@ export default function GalleryPage({ onSelectImage, selectedDir, onDirChange })
             }}>
               <span style={{
                 display: 'block', height: '100%', borderRadius: '3px',
-                background: '#00e676', width: `${total ? (done / total) * 100 : 0}%`,
+                background: '#00e676', width: `${(done / total) * 100}%`,
                 transition: 'width 0.3s',
               }} />
             </span>

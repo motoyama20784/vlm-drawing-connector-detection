@@ -77,7 +77,7 @@ export default function MaskingGalleryPage({ onSelectImage, selectedDir, onDirCh
             }}>
               <span style={{
                 display: 'block', height: '100%', borderRadius: '3px',
-                background: '#7c4dff', width: `${total ? (masked / total) * 100 : 0}%`,
+                background: '#7c4dff', width: `${(masked / total) * 100}%`,
                 transition: 'width 0.3s',
               }} />
             </span>
