@@ -2,12 +2,6 @@ import { useState, useEffect, useRef, useCallback } from 'react'
 import AnnotationCanvas from './AnnotationCanvas.jsx'
 import { fetchImageUrl, fetchMaskingFonts, fetchMaskingStatus, fetchMaskingBboxes, applyMasking } from '../api.js'
 
-// 両キャンバスで zoom を共有するための hook
-function useSharedZoom() {
-  const [sharedZoom, setSharedZoom] = useState(null)
-  return { sharedZoom, setSharedZoom }
-}
-
 const BBOX_COLOR = '#7c4dff'
 
 export default function MaskingEditor({ filename, imageDir, onBack }) {
@@ -19,7 +13,7 @@ export default function MaskingEditor({ filename, imageDir, onBack }) {
   const [applyStatus, setApplyStatus] = useState('') // '' | 'success' | 'error'
   const [applyResult, setApplyResult] = useState(null)
   const [maskedImageSrc, setMaskedImageSrc] = useState(null)
-  const { sharedZoom, setSharedZoom } = useSharedZoom()
+  const [sharedZoom, setSharedZoom] = useState(null)
   const bboxHistory = useRef([])
   const bboxesRef = useRef([])
 
