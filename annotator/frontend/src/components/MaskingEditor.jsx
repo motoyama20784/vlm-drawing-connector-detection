@@ -5,6 +5,18 @@ import { fetchImageUrl, fetchMaskingFonts, fetchMaskingStatus, fetchMaskingBboxe
 
 const BBOX_COLOR = '#7c4dff'
 
+function PanelLabel({ text, color }) {
+  return (
+    <div style={{
+      padding: '3px 10px', fontSize: '11px', fontWeight: 'bold',
+      color, background: '#0d0a1a', borderBottom: `1px solid ${color}33`,
+      userSelect: 'none', letterSpacing: '0.05em',
+    }}>
+      {text}
+    </div>
+  )
+}
+
 export default function MaskingEditor({ filename, imageDir, onBack }) {
   const [bboxes, setBboxes] = useState([])
   const [selectedId, setSelectedId] = useState(null)
@@ -97,16 +109,6 @@ export default function MaskingEditor({ filename, imageDir, onBack }) {
   const btnBase = {
     padding: '6px 14px', borderRadius: '4px', fontSize: '14px', cursor: 'pointer',
   }
-
-  const panelLabel = (text, color) => (
-    <div style={{
-      padding: '3px 10px', fontSize: '11px', fontWeight: 'bold',
-      color, background: '#0d0a1a', borderBottom: `1px solid ${color}33`,
-      userSelect: 'none', letterSpacing: '0.05em',
-    }}>
-      {text}
-    </div>
-  )
 
   return (
     <div style={{ height: '100vh', display: 'flex', flexDirection: 'column' }}>
@@ -235,7 +237,7 @@ export default function MaskingEditor({ filename, imageDir, onBack }) {
 
         {/* Left: original image with bbox drawing */}
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', minWidth: 0 }}>
-          {panelLabel('元画像', '#7c4dff')}
+          <PanelLabel text="元画像" color="#7c4dff" />
           <div style={{ flex: 1, overflow: 'hidden', background: '#0d1b2a' }}>
             <AnnotationCanvas
               imageSrc={filename ? fetchImageUrl(filename, imageDir) : ''}
@@ -255,7 +257,7 @@ export default function MaskingEditor({ filename, imageDir, onBack }) {
 
         {/* Right: masked result (read-only) */}
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', minWidth: 0 }}>
-          {panelLabel('マスク済み', '#00b4aa')}
+          <PanelLabel text="マスク済み" color="#00b4aa" />
           <div style={{ flex: 1, overflow: 'hidden', background: '#0a1a18' }}>
             {maskedImageSrc ? (
               <AnnotationCanvas
