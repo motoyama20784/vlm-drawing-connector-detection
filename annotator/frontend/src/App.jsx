@@ -267,9 +267,14 @@ export default function App() {
         <div style={{ display: 'flex', gap: '8px', padding: '6px 0', alignItems: 'center' }}>
           <button
             onClick={async () => {
-              await saveAnnotation(selected, { image: selected, connectors: bboxes, completed })
-              setPage('gallery')
-              setGalleryKey(k => k + 1)
+              try {
+                await saveAnnotation(selected, { image: selected, connectors: bboxes, completed })
+              } catch (e) {
+                console.error('Save on back failed:', e)
+              } finally {
+                setPage('gallery')
+                setGalleryKey(k => k + 1)
+              }
             }}
             style={{
               padding: '6px 14px', borderRadius: '4px', fontSize: '14px',
