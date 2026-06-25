@@ -16,3 +16,6 @@ data
 # Node.js
 node_modules/
 
+# ローカル開発用オーバーライド（各自の環境設定）
+docker-compose.override.yml
+
