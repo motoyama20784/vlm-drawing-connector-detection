@@ -1,5 +1,5 @@
 import { useRef, useEffect, useReducer, useCallback, useState } from 'react'
-import { zoomReducer } from './AnnotationCanvas.jsx'
+import { zoomReducer, ZOOM_FACTOR } from './AnnotationCanvas.jsx'
 
 const C = {
   gtTp:      '#4ade80',
@@ -155,7 +155,7 @@ export default function ResultsCanvas({ imageSrc, evaluation }) {
       type: 'wheel',
       mx: e.clientX - rect.left,
       my: e.clientY - rect.top,
-      factor: e.deltaY < 0 ? 1.15 : 1 / 1.15,
+      factor: e.deltaY < 0 ? ZOOM_FACTOR : 1 / ZOOM_FACTOR,
     })
   }, [])
 

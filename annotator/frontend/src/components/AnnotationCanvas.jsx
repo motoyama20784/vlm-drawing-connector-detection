@@ -4,7 +4,7 @@ const COLOR_DEFAULT = '#00e676'
 const COLOR_SELECTED = '#ff9800'
 const ZOOM_MIN = 0.05
 const ZOOM_MAX = 10
-const ZOOM_FACTOR = 1.15
+export const ZOOM_FACTOR = 1.15
 
 export function zoomReducer(state, action) {
   switch (action.type) {
