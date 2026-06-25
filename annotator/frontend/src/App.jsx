@@ -1,4 +1,5 @@
 import { useState, useRef, useCallback, useEffect } from 'react'
+import { useBboxHistory } from './hooks/useBboxHistory.js'
 import GalleryPage from './components/GalleryPage.jsx'
 import MaskingGalleryPage from './components/MaskingGalleryPage.jsx'
 import MaskingEditor from './components/MaskingEditor.jsx'
@@ -67,28 +68,15 @@ export default function App() {
   const [sidebarWidth, setSidebarWidth] = useState(260)
   const [dividerHover, setDividerHover] = useState(false)
   const savedSnapshot = useRef('')
-  const bboxesRef = useRef([])
   const isDragging = useRef(false)
   const dragStartX = useRef(0)
   const dragStartWidth = useRef(0)
-  const bboxHistory = useRef([]) // undo stack
+  const { bboxesRef, syncRef, push: pushHistory, undo: handleUndo, reset: resetHistory, canUndo } = useBboxHistory(setBboxes, setSelectedId)
 
   // Keep bboxesRef in sync so handlers can read latest value without deps
-  useEffect(() => { bboxesRef.current = bboxes }, [bboxes])
+  useEffect(() => { syncRef(bboxes) }, [bboxes, syncRef])
 
   const isDirty = snapshot(bboxes, completed) !== savedSnapshot.current
-
-  const pushHistory = () => {
-    bboxHistory.current = [...bboxHistory.current.slice(-49), bboxesRef.current]
-  }
-
-  const handleUndo = useCallback(() => {
-    if (bboxHistory.current.length === 0) return
-    const prev = bboxHistory.current[bboxHistory.current.length - 1]
-    bboxHistory.current = bboxHistory.current.slice(0, -1)
-    setBboxes(prev)
-    setSelectedId(null)
-  }, [])
 
   // Divider drag
   const handleDividerMouseDown = useCallback((e) => {
@@ -133,7 +121,7 @@ export default function App() {
   }, [page, handleUndo])
 
   const openEditor = useCallback(async (filename, dir = 'samples') => {
-    bboxHistory.current = []
+    resetHistory()
     setSelected(filename)
     setImageDir(dir)
     setBboxes([])
@@ -146,7 +134,7 @@ export default function App() {
     setCompleted(loadedCompleted)
     savedSnapshot.current = snapshot(loadedBboxes, loadedCompleted)
     setPage('editor')
-  }, [])
+  }, [resetHistory])
 
   const handleBboxAdd = useCallback((coords) => {
     pushHistory()
@@ -269,8 +257,6 @@ export default function App() {
     )
   }
 
-  const canUndo = bboxHistory.current.length > 0
-
   return (
     <div style={{ height: '100vh', display: 'flex', flexDirection: 'column' }}>
       <div style={{
@@ -308,14 +294,14 @@ export default function App() {
           </button>
           <button
             onClick={handleUndo}
-            disabled={!canUndo}
+            disabled={!canUndo()}
             title="元に戻す (Ctrl+Z)"
             style={{
               padding: '6px 12px', borderRadius: '4px', fontSize: '14px',
-              border: `1px solid ${canUndo ? '#4a6a8a' : '#2a3f55'}`,
-              background: canUndo ? '#1e3448' : '#161e2a',
-              color: canUndo ? '#c0d8f0' : '#3a5070',
-              cursor: canUndo ? 'pointer' : 'not-allowed',
+              border: `1px solid ${canUndo() ? '#4a6a8a' : '#2a3f55'}`,
+              background: canUndo() ? '#1e3448' : '#161e2a',
+              color: canUndo() ? '#c0d8f0' : '#3a5070',
+              cursor: canUndo() ? 'pointer' : 'not-allowed',
             }}
           >
             ↩ Undo

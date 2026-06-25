@@ -1,5 +1,6 @@
-import { useState, useEffect, useRef, useCallback } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import AnnotationCanvas from './AnnotationCanvas.jsx'
+import { useBboxHistory } from '../hooks/useBboxHistory.js'
 import { fetchImageUrl, fetchMaskingFonts, fetchMaskingStatus, fetchMaskingBboxes, applyMasking } from '../api.js'
 
 const BBOX_COLOR = '#7c4dff'
@@ -14,10 +15,9 @@ export default function MaskingEditor({ filename, imageDir, onBack }) {
   const [applyResult, setApplyResult] = useState(null)
   const [maskedImageSrc, setMaskedImageSrc] = useState(null)
   const [sharedZoom, setSharedZoom] = useState(null)
-  const bboxHistory = useRef([])
-  const bboxesRef = useRef([])
+  const { bboxesRef, syncRef, push: pushHistory, undo: handleUndo, canUndo } = useBboxHistory(setBboxes, setSelectedId)
 
-  useEffect(() => { bboxesRef.current = bboxes }, [bboxes])
+  useEffect(() => { syncRef(bboxes) }, [bboxes, syncRef])
 
   useEffect(() => {
     fetchMaskingFonts().then(f => {
@@ -44,18 +44,6 @@ export default function MaskingEditor({ filename, imageDir, onBack }) {
       }
     }).catch(() => {})
   }, [filename, imageDir])
-
-  const pushHistory = () => {
-    bboxHistory.current = [...bboxHistory.current.slice(-49), bboxesRef.current]
-  }
-
-  const handleUndo = useCallback(() => {
-    if (bboxHistory.current.length === 0) return
-    const prev = bboxHistory.current[bboxHistory.current.length - 1]
-    bboxHistory.current = bboxHistory.current.slice(0, -1)
-    setBboxes(prev)
-    setSelectedId(null)
-  }, [])
 
   useEffect(() => {
     const handler = (e) => {
@@ -105,8 +93,6 @@ export default function MaskingEditor({ filename, imageDir, onBack }) {
       setApplying(false)
     }
   }
-
-  const canUndo = bboxHistory.current.length > 0
 
   const btnBase = {
     padding: '6px 14px', borderRadius: '4px', fontSize: '14px', cursor: 'pointer',
@@ -165,14 +151,14 @@ export default function MaskingEditor({ filename, imageDir, onBack }) {
 
           <button
             onClick={handleUndo}
-            disabled={!canUndo}
+            disabled={!canUndo()}
             title="元に戻す (Ctrl+Z)"
             style={{
               ...btnBase,
-              border: `1px solid ${canUndo ? '#3a2a6e' : '#2a1a4e'}`,
-              background: canUndo ? '#1b1a2e' : '#131020',
-              color: canUndo ? '#c4aaff' : '#4a3a7a',
-              cursor: canUndo ? 'pointer' : 'not-allowed',
+              border: `1px solid ${canUndo() ? '#3a2a6e' : '#2a1a4e'}`,
+              background: canUndo() ? '#1b1a2e' : '#131020',
+              color: canUndo() ? '#c4aaff' : '#4a3a7a',
+              cursor: canUndo() ? 'pointer' : 'not-allowed',
             }}
           >
             ↩ Undo
